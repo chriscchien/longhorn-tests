@@ -1783,6 +1783,8 @@ def wait_for_engine_image_state(client, image_name, state):
         if image.state == state:
             break
         time.sleep(RETRY_INTERVAL)
+    print("image state = {}".format(image.state))
+    
     assert image.state == state
     return image
 
