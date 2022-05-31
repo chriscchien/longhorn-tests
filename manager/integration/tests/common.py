@@ -56,6 +56,7 @@ PORT = ":9500"
 RETRY_COMMAND_COUNT = 3
 RETRY_COUNTS = 300
 RETRY_INTERVAL = 0.5
+RETRY_INTERVAL_SHORT = 0.01
 RETRY_INTERVAL_LONG = 2
 RETRY_BACKUP_COUNTS = 300
 RETRY_BACKUP_INTERVAL = 1
@@ -1669,15 +1670,14 @@ def wait_for_volume_degraded(client, name):
 
 
 def wait_for_volume_faulted(client, name):
-    wait_for_volume_status(client, name,
-                           VOLUME_FIELD_STATE,
-                           VOLUME_STATE_DETACHED)
+
     return wait_for_volume_status(client, name,
                                   VOLUME_FIELD_ROBUSTNESS,
-                                  VOLUME_ROBUSTNESS_FAULTED)
+                                  VOLUME_ROBUSTNESS_FAULTED,
+                                  interval=RETRY_INTERVAL_SHORT)
 
 
-def wait_for_volume_status(client, name, key, value):
+def wait_for_volume_status(client, name, key, value, interval=RETRY_INTERVAL):
     wait_for_volume_creation(client, name)
     for i in range(RETRY_COUNTS):
         volume = client.by_id_volume(name)
@@ -1950,9 +1950,8 @@ def crash_replica_processes(client, api, volname, replicas=None,
                        "' | grep -v grep | awk '{print $2}'`"
         exec_instance_manager(api, r.instanceManagerName, kill_command)
 
-        # FIXME: this is a work around, should check this in-parallel.
-        #        https://github.com/longhorn/longhorn/issues/4045
-        if wait_to_fail is True:
+    if wait_to_fail is True:
+        for r in replicas:
             wait_for_replica_failed(client, volname, r['name'])
 
 
