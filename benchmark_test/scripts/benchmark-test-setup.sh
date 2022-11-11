@@ -190,6 +190,13 @@ run_fio_longhorn_test(){
   kubectl delete -f "${TF_VAR_tf_workspace}/scripts/fio-longhorn.yaml"
 }
 
+instance_manager_r(){
+
+  echo =============
+  kubectl -n longhorn-system top pods
+  echo =============
+
+}
 
 main(){
   set_kubeconfig_envvar ${TF_VAR_arch} ${TF_VAR_tf_workspace}
@@ -205,14 +212,17 @@ main(){
 
   adjust_replica_count 3
   run_fio_longhorn_test 3
+  instance_manager_r
 
   adjust_replica_count 2
   kubectl cordon "$(kubectl get nodes | awk 'NR!=1 && $3!~/control-plane/ {print $1}' | awk 'NR==3')"
   run_fio_longhorn_test 2
+  instance_manager_r
 
   adjust_replica_count 1
   kubectl cordon "$(kubectl get nodes | awk 'NR!=1 && $3!~/control-plane/ {print $1}' | awk 'NR==2')"
   run_fio_longhorn_test 1
+  instance_manager_r
 
 }
 
