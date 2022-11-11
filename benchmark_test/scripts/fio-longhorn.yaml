@@ -25,7 +25,8 @@ spec:
     spec:
       containers:
         - name: kbench
-          image: yangchiu/kbench:latest
+          # image: yangchiu/kbench:latest
+          image: chanow/kbench:arm
           imagePullPolicy: Always
           env:
             #- name: QUICK_MODE  # for debugging
