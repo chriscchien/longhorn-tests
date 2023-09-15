@@ -94,6 +94,15 @@ from common import wait_for_snapshot_count
 from common import make_deployment_with_pvc # NOQA
 from common import wait_for_volume_option_trim_auto_removing_snapshots
 from common import FS_TYPE_EXT4, FS_TYPE_XFS
+<<<<<<< HEAD
+=======
+from common import DEFAULT_BACKUP_COMPRESSION_METHOD
+from common import BACKUP_COMPRESSION_METHOD_LZ4
+from common import BACKUP_COMPRESSION_METHOD_GZIP
+from common import BACKUP_COMPRESSION_METHOD_NONE
+from common import create_and_wait_deployment
+from common import get_custom_object_api_client
+>>>>>>> ae52cf6f (Add test case test_backuptarget_invalid)
 
 from backupstore import backupstore_delete_volume_cfg_file
 from backupstore import backupstore_cleanup
@@ -107,6 +116,7 @@ from backupstore import backupstore_get_backup_volume_prefix
 from backupstore import set_backupstore_url, set_backupstore_credential_secret, set_backupstore_poll_interval  # NOQA
 from backupstore import reset_backupstore_setting  # NOQA
 from backupstore import set_backupstore_s3, backupstore_get_secret  # NOQA
+from backupstore import backupstore_invalid # NOQA
 
 from kubernetes import client as k8sclient
 
@@ -5371,8 +5381,14 @@ def test_filesystem_trim(client, fs_type):  # NOQA
     wait_for_volume_delete(client, test_volume_name)
 
 
-@pytest.mark.skip(reason="TODO")
-def test_backuptarget_invalid(): # NOQA
+def test_backuptarget_invalid(apps_api, # NOQA
+                              client, # NOQA
+                              core_api, # NOQA
+                              backupstore_invalid, # NOQA
+                              make_deployment_with_pvc, # NOQA
+                              pvc_name, # NOQA
+                              request, # NOQA
+                              volume_name): # NOQA
     """
     Related issue :
     https://github.com/longhorn/longhorn/issues/1249
@@ -5392,4 +5408,133 @@ def test_backuptarget_invalid(): # NOQA
     Then
     - Backup will be failed and the backup state is Error.
     """
+<<<<<<< HEAD
     pass
+=======
+    volume = create_and_check_volume(client, volume_name)
+    pvc_name = volume_name + "-pvc"
+    create_pv_for_volume(client, core_api, volume, volume_name)
+    create_pvc_for_volume(client, core_api, volume, pvc_name)
+
+    deployment_name = volume_name + "-dep"
+    deployment = make_deployment_with_pvc(deployment_name, pvc_name)
+    create_and_wait_deployment(apps_api, deployment)
+
+    pod_names = common.get_deployment_pod_names(core_api, deployment)
+    write_pod_volume_random_data(core_api, pod_names[0], "/data/test",
+                                 DATA_SIZE_IN_MB_1)
+
+    volume = client.by_id_volume(volume_name)
+    snap = create_snapshot(client, volume_name)
+    volume.snapshotBackup(name=snap.name)
+
+    for i in range(RETRY_COMMAND_COUNT):
+        api = get_custom_object_api_client()
+        backups = api.list_namespaced_custom_object("longhorn.io",
+                                                    "v1beta2",
+                                                    "longhorn-system",
+                                                    "backups")
+
+        if backups["items"][0]["status"]["state"] != "":
+            break
+        time.sleep(RETRY_INTERVAL)
+
+    assert backups["items"][0]["spec"]["snapshotName"] == snap.name
+    assert backups["items"][0]["status"]["state"] == "Error"
+
+
+@pytest.mark.volume_backup_restore   # NOQA
+def test_volume_backup_and_restore_with_lz4_compression_method(client, set_random_backupstore, volume_name):  # NOQA
+    """
+    Scenario: test volume backup and restore with different compression methods
+
+    Issue: https://github.com/longhorn/longhorn/issues/5189
+
+    Given setup Backup Compression Method is "lz4"
+    And setup backup concurrent limit is "4"
+    And setup restore concurrent limit is "4"
+
+    When create a volume and attach to the current node
+    And get the volume's details
+    Then verify the volume's compression method is "lz4"
+
+    Then Create a backup of volume
+    And Write volume random data
+    Then restore the backup to a new volume
+    And Attach the new volume and verify the data integrity
+    Then Detach the volume and delete the backup
+    And Wait for the restored volume's `lastBackup` to be cleaned
+    (due to remove the backup)
+    And Delete the volume
+    """
+    common.update_setting(client, common.SETTING_BACKUP_COMPRESSION_METHOD,
+                          BACKUP_COMPRESSION_METHOD_LZ4)
+    common.update_setting(client, common.SETTING_BACKUP_CONCURRENT_LIMIT, "4")
+    common.update_setting(client, common.SETTING_RESTORE_CONCURRENT_LIMIT, "4")
+    backup_test(client, volume_name, SIZE,
+                compression_method=BACKUP_COMPRESSION_METHOD_LZ4)
+
+
+@pytest.mark.volume_backup_restore   # NOQA
+def test_volume_backup_and_restore_with_gzip_compression_method(client, set_random_backupstore, volume_name):  # NOQA
+    """
+    Scenario: test volume backup and restore with different compression methods
+
+    Issue: https://github.com/longhorn/longhorn/issues/5189
+
+    Given setup Backup Compression Method is "gzip"
+    And setup backup concurrent limit is "4"
+    And setup restore concurrent limit is "4"
+
+    When create a volume and attach to the current node
+    And get the volume's details
+    Then verify the volume's compression method is "gzip"
+
+    Then Create a backup of volume
+    And Write volume random data
+    Then restore the backup to a new volume
+    And Attach the new volume and verify the data integrity
+    And Detach the volume and delete the backup
+    And Wait for the restored volume's `lastBackup` to be cleaned
+    (due to remove the backup)
+    And Delete the volume
+    """
+    common.update_setting(client, common.SETTING_BACKUP_COMPRESSION_METHOD,
+                          BACKUP_COMPRESSION_METHOD_GZIP)
+    common.update_setting(client, common.SETTING_BACKUP_CONCURRENT_LIMIT, "4")
+    common.update_setting(client, common.SETTING_RESTORE_CONCURRENT_LIMIT, "4")
+    backup_test(client, volume_name, SIZE,
+                compression_method=BACKUP_COMPRESSION_METHOD_GZIP)
+
+
+@pytest.mark.volume_backup_restore   # NOQA
+def test_volume_backup_and_restore_with_none_compression_method(client, set_random_backupstore, volume_name):  # NOQA
+    """
+    Scenario: test volume backup and restore with different compression methods
+
+    Issue: https://github.com/longhorn/longhorn/issues/5189
+
+    Given setup Backup Compression Method is "none"
+    And setup backup concurrent limit is "4"
+    And setup restore concurrent limit is "4"
+
+    When create a volume and attach to the current node
+    And get the volume's details
+    Then verify the volume's compression method is "none"
+
+    Then Create a backup of volume
+    And Write volume random data
+    Then restore the backup to a new volume
+    And Attach the new volume and verify the data integrity
+    And Detach the volume and delete the backup
+    And Wait for the restored volume's `lastBackup` to be cleaned
+    (due to remove the backup)
+    And Delete the volume
+    """
+    common.update_setting(client, common.SETTING_BACKUP_COMPRESSION_METHOD,
+                          BACKUP_COMPRESSION_METHOD_NONE)
+    common.update_setting(client, common.SETTING_BACKUP_CONCURRENT_LIMIT, "4")
+    common.update_setting(client, common.SETTING_RESTORE_CONCURRENT_LIMIT, "4")
+    backup_test(client, volume_name, SIZE,
+                compression_method=BACKUP_COMPRESSION_METHOD_NONE)
+>>>>>>> ae52cf6f (Add test case test_backuptarget_invalid)
