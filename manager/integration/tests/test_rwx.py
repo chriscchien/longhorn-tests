@@ -634,3 +634,81 @@ def test_rwx_offline_expansion(client, core_api, pvc, make_deployment_with_pvc):
                                            pod_name,
                                            'default')
     assert int(data_size_in_pod)/1024/1024 == data_size_in_mb
+
+
+def test_issue_6776(client, core_api, pvc, make_deployment_with_pvc):  # NOQA
+    pvc_name = 'pvc-deployment-multi-pods-test'
+    pvc['metadata']['name'] = pvc_name
+    pvc['spec']['storageClassName'] = 'longhorn'
+    pvc['spec']['accessModes'] = ['ReadWriteMany']
+
+    core_api.create_namespaced_persistent_volume_claim(
+        body=pvc, namespace='default')
+
+    deployment = make_deployment_with_pvc(
+        'deployment-multi-pods-test', pvc_name, replicas=5)
+    apps_api = get_apps_api_client()
+    create_and_wait_deployment(apps_api, deployment)
+
+    pv_name = get_volume_name(core_api, pvc_name)
+    share_manager_name = 'share-manager-' + pv_name
+    deployment_label_selector = "name=" + \
+                                deployment["metadata"]["labels"]["name"]
+
+    deployment_pod_list = \
+        core_api.list_namespaced_pod(namespace="default",
+                                     label_selector=deployment_label_selector)
+
+    assert deployment_pod_list.items.__len__() == 5
+
+    pod_name_1 = deployment_pod_list.items[0].metadata.name
+    test_data_1 = generate_random_data(VOLUME_RWTEST_SIZE)
+    write_pod_volume_data(core_api, pod_name_1, test_data_1, filename='test1')
+
+    pod_name_2 = deployment_pod_list.items[1].metadata.name
+    command = 'cat /data/test1'
+    pod_data_2 = exec_command_in_pod(core_api, command, pod_name_2, 'default')
+
+    assert test_data_1 == pod_data_2
+
+    test_data_2 = generate_random_data(VOLUME_RWTEST_SIZE)
+    write_pod_volume_data(core_api, pod_name_2, test_data_2, filename='test2')
+
+    command = 'cat /export' + '/' + pv_name + '/' + 'test1'
+    share_manager_data_1 = exec_command_in_pod(
+        core_api, command, share_manager_name, LONGHORN_NAMESPACE)
+    assert test_data_1 == share_manager_data_1
+
+    command = 'cat /export' + '/' + pv_name + '/' + 'test2'
+    share_manager_data_2 = exec_command_in_pod(
+        core_api, command, share_manager_name, LONGHORN_NAMESPACE)
+
+    assert test_data_2 == share_manager_data_2
+
+    for i in range(100):
+        print("---")
+        print(i)
+        print("scale down deployment")
+        deployment['spec']['replicas'] = 0
+        apps_api.patch_namespaced_deployment(body=deployment,
+                                         namespace='default',
+                                         name=deployment["metadata"]["name"])
+
+        wait_for_volume_detached(client, pv_name)
+
+        print("scale up deployment")
+        deployment['spec']['replicas'] = 5
+        apps_api.patch_namespaced_deployment(body=deployment,
+                                         namespace='default',
+                                         name=deployment["metadata"]["name"])
+        wait_deployment_replica_ready(apps_api, deployment["metadata"]["name"], 5)
+
+        command = 'cat /export' + '/' + pv_name + '/' + 'test1'
+        share_manager_data_1 = exec_command_in_pod(
+            core_api, command, share_manager_name, LONGHORN_NAMESPACE)
+        assert test_data_1 == share_manager_data_1
+
+        command = 'cat /export' + '/' + pv_name + '/' + 'test2'
+        share_manager_data_2 = exec_command_in_pod(
+            core_api, command, share_manager_name, LONGHORN_NAMESPACE)
+        assert test_data_2 == share_manager_data_2
