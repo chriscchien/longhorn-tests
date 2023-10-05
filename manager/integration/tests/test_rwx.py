@@ -22,6 +22,13 @@ from common import expand_and_wait_for_pvc, wait_for_volume_expansion
 from common import wait_deployment_replica_ready, wait_for_volume_healthy
 from backupstore import set_random_backupstore # NOQA
 from multiprocessing import Pool
+from common import get_volume_endpoint, write_volume_dev_random_mb_data
+from kubernetes.stream import stream
+from kubernetes import client as k8sclient
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import subprocess
+import random, string
+import concurrent.futures
 
 import time
 import pytest
@@ -257,10 +264,11 @@ def test_rwx_statefulset_scale_down_up(core_api, statefulset):  # NOQA
         = 'longhorn'
     statefulset['spec']['volumeClaimTemplates'][0]['spec']['accessModes'] \
         = ['ReadWriteMany']
+    statefulset['spec']['replicas'] = 5
 
     create_and_wait_statefulset(statefulset)
 
-    for i in range(2):
+    for i in range(5):
         pvc_name = \
             statefulset['spec']['volumeClaimTemplates'][0]['metadata']['name']\
             + '-' + statefulset_name + '-' + str(i)
@@ -274,65 +282,72 @@ def test_rwx_statefulset_scale_down_up(core_api, statefulset):  # NOQA
                             namespace=LONGHORN_NAMESPACE)
 
     md5sum_pod = []
-    for i in range(2):
+    for i in range(5):
         test_pod_name = statefulset_name + '-' + str(i)
         test_data = generate_random_data(VOLUME_RWTEST_SIZE)
         write_pod_volume_data(core_api, test_pod_name, test_data)
         md5sum_pod.append(test_data)
 
-    statefulset['spec']['replicas'] = replicas = 0
-    apps_api = get_apps_api_client()
-    apps_api.patch_namespaced_stateful_set(
-        name=statefulset_name,
-        namespace='default',
-        body={
-            'spec': {
-                'replicas': replicas
-            }
-        })
-    for i in range(DEFAULT_STATEFULSET_TIMEOUT):
-        s_set = apps_api.read_namespaced_stateful_set(
-            name=statefulset['metadata']['name'],
-            namespace='default')
-        # s_set is none if statefulset is not yet created
-        if s_set is not None and s_set.status.ready_replicas == replicas or \
-                (replicas == 0 and not s_set.status.ready_replicas):
-            break
-        time.sleep(DEFAULT_STATEFULSET_INTERVAL)
+    for j in range(30):
+        print()
+        print(j)
+        print("scale down")
+        statefulset['spec']['replicas'] = replicas = 0
+        apps_api = get_apps_api_client()
+        apps_api.patch_namespaced_stateful_set(
+            name=statefulset_name,
+            namespace='default',
+            body={
+                'spec': {
+                    'replicas': replicas
+                }
+            })
+        for i in range(DEFAULT_STATEFULSET_TIMEOUT):
+            s_set = apps_api.read_namespaced_stateful_set(
+                name=statefulset['metadata']['name'],
+                namespace='default')
+            # s_set is none if statefulset is not yet created
+            if s_set is not None and s_set.status.ready_replicas == replicas or \
+                    (replicas == 0 and not s_set.status.ready_replicas):
+                break
+            time.sleep(DEFAULT_STATEFULSET_INTERVAL)
 
-    found = True
-    for i in range(RETRY_COUNTS):
-        pods = core_api.list_namespaced_pod(namespace=LONGHORN_NAMESPACE)
-        pod_names = []
-        for item in pods.items:
-            pod_names.append(item.metadata.name)
-        if share_manager_name[0] not in pod_names and  \
-                share_manager_name[1] not in pod_names:
-            found = False
-            break
-        time.sleep(RETRY_INTERVAL)
+        found = True
+        for i in range(RETRY_COUNTS):
+            pods = core_api.list_namespaced_pod(namespace=LONGHORN_NAMESPACE)
+            pod_names = []
+            for item in pods.items:
+                pod_names.append(item.metadata.name)
+            if share_manager_name[0] not in pod_names and  \
+                    share_manager_name[1] not in pod_names:
+                found = False
+                break
+            time.sleep(RETRY_INTERVAL)
 
-    assert not found
+        assert not found
 
-    statefulset['spec']['replicas'] = replicas = 2
-    apps_api = get_apps_api_client()
-    apps_api.patch_namespaced_stateful_set(
-        name=statefulset_name,
-        namespace='default',
-        body={
-            'spec': {
-                'replicas': replicas
-            }
-        })
-    wait_statefulset(statefulset)
+        print("scale up")
+        statefulset['spec']['replicas'] = replicas = 5
+        apps_api = get_apps_api_client()
+        apps_api.patch_namespaced_stateful_set(
+            name=statefulset_name,
+            namespace='default',
+            body={
+                'spec': {
+                    'replicas': replicas
+                }
+            })
+        wait_statefulset(statefulset)
 
-    for i in range(2):
-        test_pod_name = statefulset_name + '-' + str(i)
-        command = 'cat /data/test'
-        pod_data = exec_command_in_pod(core_api, command, test_pod_name,
-                                       'default')
+        for i in range(5):
+            test_pod_name = statefulset_name + '-' + str(i)
+            command = 'cat /data/test'
+            pod_data = exec_command_in_pod(core_api, command, test_pod_name,
+                                        'default')
 
-        assert pod_data == md5sum_pod[i]
+            assert pod_data == md5sum_pod[i]
+
+        print("next round")
 
 
 def test_rwx_delete_share_manager_pod(core_api, statefulset):  # NOQA
@@ -637,6 +652,8 @@ def test_rwx_offline_expansion(client, core_api, pvc, make_deployment_with_pvc):
 
 
 def test_issue_6776(client, core_api, pvc, make_deployment_with_pvc):  # NOQA
+    deployment_replica_cnt = 30
+
     pvc_name = 'pvc-deployment-multi-pods-test'
     pvc['metadata']['name'] = pvc_name
     pvc['spec']['storageClassName'] = 'longhorn'
@@ -646,7 +663,7 @@ def test_issue_6776(client, core_api, pvc, make_deployment_with_pvc):  # NOQA
         body=pvc, namespace='default')
 
     deployment = make_deployment_with_pvc(
-        'deployment-multi-pods-test', pvc_name, replicas=5)
+        'deployment-multi-pods-test', pvc_name, replicas=deployment_replica_cnt)
     apps_api = get_apps_api_client()
     create_and_wait_deployment(apps_api, deployment)
 
@@ -659,31 +676,15 @@ def test_issue_6776(client, core_api, pvc, make_deployment_with_pvc):  # NOQA
         core_api.list_namespaced_pod(namespace="default",
                                      label_selector=deployment_label_selector)
 
-    assert deployment_pod_list.items.__len__() == 5
+    assert deployment_pod_list.items.__len__() == deployment_replica_cnt
 
     pod_name_1 = deployment_pod_list.items[0].metadata.name
-    test_data_1 = generate_random_data(VOLUME_RWTEST_SIZE)
-    write_pod_volume_data(core_api, pod_name_1, test_data_1, filename='test1')
+    write_pod_volume_random_data(core_api, pod_name_1, "/data/test1",
+                                 DATA_SIZE_IN_MB_3)
 
     pod_name_2 = deployment_pod_list.items[1].metadata.name
-    command = 'cat /data/test1'
-    pod_data_2 = exec_command_in_pod(core_api, command, pod_name_2, 'default')
-
-    assert test_data_1 == pod_data_2
-
-    test_data_2 = generate_random_data(VOLUME_RWTEST_SIZE)
-    write_pod_volume_data(core_api, pod_name_2, test_data_2, filename='test2')
-
-    command = 'cat /export' + '/' + pv_name + '/' + 'test1'
-    share_manager_data_1 = exec_command_in_pod(
-        core_api, command, share_manager_name, LONGHORN_NAMESPACE)
-    assert test_data_1 == share_manager_data_1
-
-    command = 'cat /export' + '/' + pv_name + '/' + 'test2'
-    share_manager_data_2 = exec_command_in_pod(
-        core_api, command, share_manager_name, LONGHORN_NAMESPACE)
-
-    assert test_data_2 == share_manager_data_2
+    write_pod_volume_random_data(core_api, pod_name_2, "/data/test2",
+                                 DATA_SIZE_IN_MB_3)
 
     for i in range(100):
         print("---")
@@ -697,18 +698,74 @@ def test_issue_6776(client, core_api, pvc, make_deployment_with_pvc):  # NOQA
         wait_for_volume_detached(client, pv_name)
 
         print("scale up deployment")
-        deployment['spec']['replicas'] = 5
+        deployment['spec']['replicas'] = deployment_replica_cnt
         apps_api.patch_namespaced_deployment(body=deployment,
                                          namespace='default',
                                          name=deployment["metadata"]["name"])
-        wait_deployment_replica_ready(apps_api, deployment["metadata"]["name"], 5)
+        wait_deployment_replica_ready(apps_api, deployment["metadata"]["name"], deployment_replica_cnt)
 
-        command = 'cat /export' + '/' + pv_name + '/' + 'test1'
-        share_manager_data_1 = exec_command_in_pod(
-            core_api, command, share_manager_name, LONGHORN_NAMESPACE)
-        assert test_data_1 == share_manager_data_1
 
-        command = 'cat /export' + '/' + pv_name + '/' + 'test2'
-        share_manager_data_2 = exec_command_in_pod(
-            core_api, command, share_manager_name, LONGHORN_NAMESPACE)
-        assert test_data_2 == share_manager_data_2
+def test_race_condition(core_api, pod_make):
+    
+    pvc_name = 'pvc-multi-pods-test'
+    
+    executor = ThreadPoolExecutor(max_workers=5)
+    executor.submit(create_delete_pod_loop, core_api, pvc_name, pod_make, "/data/process.sh")
+    executor.submit(create_delete_pod_loop, core_api, pvc_name, pod_make, "/data/process.sh")
+    executor.submit(create_delete_pod_loop, core_api, pvc_name, pod_make, "/data/process.sh")
+    executor.submit(create_delete_pod_loop, core_api, pvc_name, pod_make, "/data/process.sh")
+    executor.submit(create_delete_pod_loop, core_api, pvc_name, pod_make, "/data/process.sh")
+    
+    input("...")
+
+def create_delete_pod_loop(core_api, pvc_name, pod_make, command):
+
+    while True:
+        create_delete_pod(core_api, pvc_name, pod_make, command)
+
+def create_delete_pod(core_api, pvc_name, pod_make, command):
+    
+    pod_name = "test-pod" + "-" + \
+        ''.join(random.choice(string.ascii_lowercase + string.digits)
+                for _ in range(6))
+    #print(pod_name)
+    pod_manifest = pod_make()
+    pod_manifest['spec']['volumes'] = [create_pvc_spec(pvc_name)]
+    pod_manifest['metadata']['name'] = pod_name
+    pod_manifest['spec']['volumes'] = [{
+        'name': pod_manifest['spec']['containers'][0]['volumeMounts'][0]['name'],
+        'persistentVolumeClaim': {'claimName': pvc_name},
+    }]
+    print("create pod {}".format(pod_name))
+
+    core_api.create_namespaced_pod(
+        body=pod_manifest,
+        namespace='default')
+
+    pod = None
+    for i in range(180):
+        pod = core_api.read_namespaced_pod(
+            name=pod_name,
+            namespace='default')
+        if pod is not None and pod.status.phase != 'Pending':
+            break
+        time.sleep(1)
+    assert pod is not None and pod.status.phase == 'Running'
+
+    cmd = ["kubectl", "exec", "-it",  pod_name, "--", "/bin/bash", "-c", command]
+    subprocess.check_call(cmd)
+
+    print("delete pod {}".format(pod_name))
+    try:
+        core_api.delete_namespaced_pod(
+            name=pod_manifest['metadata']['name'], namespace="default",
+            body=k8sclient.V1DeleteOptions())
+    except Exception as e:
+        print(e)
+
+    # Generate a random sleep time within the specified range
+    sleep_time = random.uniform(2.5, 30.5)
+
+    print(f"Process sleeping for {sleep_time:.2f} seconds...")
+    time.sleep(sleep_time)
+    print("Done sleeping.")

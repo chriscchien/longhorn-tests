@@ -586,10 +586,11 @@ def delete_and_wait_pod(api, pod_name, namespace='default', wait=True):
     try:
         target_pod = api.read_namespaced_pod(name=pod_name,
                                              namespace=namespace)
+        print(target_pod)
     except ApiException as e:
         assert e.status == 404
         return
-
+    print(pod_name)
     try:
         api.delete_namespaced_pod(
             name=pod_name, namespace=namespace,
@@ -823,7 +824,7 @@ def exec_command_in_pod(api, command, pod_name, namespace):
         '-c',
         command
     ]
-    with timeout(seconds=STREAM_EXEC_TIMEOUT,
+    with timeout(seconds=120,
                  error_message='Timeout on executing stream read/write'):
         return stream(
             api.connect_get_namespaced_pod_exec, pod_name, namespace,
@@ -1071,7 +1072,7 @@ def pod_make(request):
             },
             'spec': {
                 'containers': [{
-                    'image': 'busybox:1.34.0',
+                    'image': 'ubuntu:20.04',
                     'imagePullPolicy': 'IfNotPresent',
                     'name': 'sleep',
                     "args": [
@@ -1119,7 +1120,7 @@ def pod_make(request):
                 print("\nException when waiting for PV deletion")
                 print(e)
 
-        request.addfinalizer(finalizer)
+        # request.addfinalizer(finalizer)
         return pod_manifest
 
     return make_pod
@@ -1343,7 +1344,7 @@ def get_pvc_manifest(request):
             client = get_longhorn_api_client()
             wait_for_volume_delete(client, volume_name)
 
-    request.addfinalizer(finalizer)
+    # request.addfinalizer(finalizer)
 
     return pvc_manifest
 
