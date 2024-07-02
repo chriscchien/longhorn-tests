@@ -3599,6 +3599,20 @@ def reset_settings(client):
         if setting.name == SETTING_PRIORITY_CLASS:
             continue
 
+        if setting.name == "freeze-filesystem-for-snapshot":
+            s = client.by_id_setting(setting_name)
+            if s.value != "true":
+                try:
+                    client.update(s, value="true")
+                except Exception as e:
+                    print("\nException when resetting ",
+                          setting_name,
+                          " to value: ",
+                          setting_default_value)
+                    print(s)
+                    print(e)
+            continue
+
         # The version of the support bundle kit will be specified by a command
         # option when starting the manager. And setting requires a value.
         #
