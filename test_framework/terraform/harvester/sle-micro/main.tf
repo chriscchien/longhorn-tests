@@ -43,7 +43,7 @@ resource "rancher2_machine_config_v2" "e2e-machine-config-controlplane" {
     vm_namespace = "longhorn-qa"
 
     cpu_count = "4"
-    memory_size = "8"
+    memory_size = "16"
 
     disk_info = <<EOF
     {
@@ -88,7 +88,7 @@ resource "rancher2_machine_config_v2" "e2e-machine-config-worker" {
     vm_namespace = "longhorn-qa"
 
     cpu_count = "4"
-    memory_size = "8"
+    memory_size = "16"
 
     disk_info = <<EOF
     {

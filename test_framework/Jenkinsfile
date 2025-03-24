@@ -161,6 +161,8 @@ node {
                 sh "docker cp ${AZURE_CRT_FILE} ${JOB_BASE_NAME}-${BUILD_NUMBER}:/src/longhorn-tests/azure_client.pfx"
             }
 
+
+
             timeout(60) {
                 stage ('terraform') {
                     sh "docker exec ${JOB_BASE_NAME}-${BUILD_NUMBER} ${TF_VAR_tf_workspace}/scripts/terraform-setup.sh"
