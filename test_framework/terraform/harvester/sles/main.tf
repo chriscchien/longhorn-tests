@@ -130,29 +130,26 @@ write_files:
       ? filebase64("/usr/local/share/ca-certificates/suse/SUSE_Trust_Root.crt")
       : ""}
 runcmd:
-  - SUSEConnect -r ${var.registration_code}
-  - zypper install -y qemu-guest-agent iptables open-iscsi nfs-client cryptsetup device-mapper
-  - zypper -n install --force-resolution kernel-default
-  - - systemctl
-    - enable
-    - '--now'
-    - qemu-guest-agent.service
-  - systemctl enable iscsid
-  - systemctl start iscsid
-  - touch /etc/modules-load.d/modules.conf
-  - echo uio >> /etc/modules-load.d/modules.conf
-  - echo uio_pci_generic >> /etc/modules-load.d/modules.conf
-  - echo vfio_pci >> /etc/modules-load.d/modules.conf
-  - echo nvme-tcp >> /etc/modules-load.d/modules.conf
-  - echo dm_crypt >> /etc/modules-load.d/modules.conf
-  - modprobe uio uio_pci_generic vfio_pci nvme-tcp dm_crypt
-  - echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
-  - echo "vm.nr_hugepages=1024" >> /etc/sysctl.conf
-  - base64 -d /tmp/SUSE_Trust_Root_encoded.crt > /tmp/SUSE_Trust_Root.crt
-  - mkdir -p /etc/pki/trust/anchors/
-  - cp /tmp/SUSE_Trust_Root.crt /etc/pki/trust/anchors/
-  - update-ca-certificates
-  - sysctl -p
+  - SUSEConnect -r ${var.registration_code} | tee /var/log/terraform_provision.log
+  - zypper install -y qemu-guest-agent iptables open-iscsi nfs-client cryptsetup device-mapper | tee -a /var/log/terraform_provision.log
+  - zypper -n install --force-resolution kernel-default | tee -a /var/log/terraform_provision.log
+  - systemctl enable --now qemu-guest-agent.service | tee -a /var/log/terraform_provision.log
+  - systemctl enable iscsid | tee -a /var/log/terraform_provision.log
+  - systemctl start iscsid | tee -a /var/log/terraform_provision.log
+  - touch /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - echo uio >> /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - echo uio_pci_generic >> /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - echo vfio_pci >> /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - echo nvme-tcp >> /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - echo dm_crypt >> /etc/modules-load.d/modules.conf | tee -a /var/log/terraform_provision.log
+  - modprobe uio uio_pci_generic vfio_pci nvme-tcp dm_crypt | tee -a /var/log/terraform_provision.log
+  - echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages | tee -a /var/log/terraform_provision.log
+  - echo "vm.nr_hugepages=1024" >> /etc/sysctl.conf | tee -a /var/log/terraform_provision.log
+  - base64 -d /tmp/SUSE_Trust_Root_encoded.crt > /tmp/SUSE_Trust_Root.crt | tee -a /var/log/terraform_provision.log
+  - mkdir -p /etc/pki/trust/anchors/ | tee -a /var/log/terraform_provision.log
+  - cp /tmp/SUSE_Trust_Root.crt /etc/pki/trust/anchors/ | tee -a /var/log/terraform_provision.log
+  - update-ca-certificates | tee -a /var/log/terraform_provision.log
+  - sysctl -p | tee -a /var/log/terraform_provision.log
 EOF
   }
 }
