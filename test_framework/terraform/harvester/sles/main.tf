@@ -145,12 +145,14 @@ runcmd:
   - echo vfio_pci >> /etc/modules-load.d/modules.conf
   - echo nvme-tcp >> /etc/modules-load.d/modules.conf
   - echo dm_crypt >> /etc/modules-load.d/modules.conf
+  - modprobe uio uio_pci_generic vfio_pci nvme-tcp dm_crypt
   - echo 1024 > /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
   - echo "vm.nr_hugepages=1024" >> /etc/sysctl.conf
   - base64 -d /tmp/SUSE_Trust_Root_encoded.crt > /tmp/SUSE_Trust_Root.crt
   - mkdir -p /etc/pki/trust/anchors/
   - cp /tmp/SUSE_Trust_Root.crt /etc/pki/trust/anchors/
   - update-ca-certificates
+  - sysctl -p
 EOF
   }
 }
