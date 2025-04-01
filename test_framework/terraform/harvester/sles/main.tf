@@ -130,7 +130,8 @@ write_files:
       ? filebase64("/usr/local/share/ca-certificates/suse/SUSE_Trust_Root.crt")
       : ""}
 runcmd:
-  - /bin/bash -c "export PATH=$PATH:/sbin"
+  - echo 'export PATH=$PATH:/sbin' >> /etc/profile
+  - source /etc/profile
   - SUSEConnect -r ${var.registration_code}
   - zypper install -y qemu-guest-agent iptables open-iscsi nfs-client cryptsetup device-mapper
   - zypper -n install --force-resolution kernel-default
