@@ -39,10 +39,10 @@ output "resource_suffix" {
 }
 
 
-output "talos_version" {
+output "talos_version_raw" {
   value = "v${var.os_distro_version}"
 }
 
-output "talos_version" {
+output "talos_version_local" {
   value = local.talos_version
 }
