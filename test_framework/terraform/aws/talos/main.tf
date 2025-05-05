@@ -305,7 +305,8 @@ data "local_file" "schematic_response" {
 
 locals {
   schematic_id = jsondecode(data.local_file.schematic_response.content).id
-  talos_version = "v${var.os_distro_version}"
+  #talos_version = "v${var.os_distro_version}"
+  talos_version = "v1.9"
 }
 
 # Upgrade Talos cluster control node using schematic ID
