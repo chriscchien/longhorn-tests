@@ -336,3 +336,10 @@ resource "null_resource" "upgrade_worker_nodes" {
   }
 }
 
+output "debug_os_distro_version" {
+  value = var.os_distro_version
+}
+
+output "debug_talos_version" {
+  value = local.talos_version
+}
