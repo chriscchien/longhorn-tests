@@ -37,3 +37,12 @@ output "resource_suffix" {
 
   value = random_string.random_suffix.id
 }
+
+
+output "talos_version" {
+  value = "v${var.os_distro_version}"
+}
+
+output "talos_version" {
+  value = local.talos_version
+}
