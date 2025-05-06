@@ -18,7 +18,7 @@ IMAGES=(
 )
 
 # Login to AppCo
-docker login dp.apps.rancher.io -u "${APPCO_USERNAME}" -p "${APPCO_PASSWORD}"
+echo "${APPCO_PASSWORD}" | docker login dp.apps.rancher.io -u "${APPCO_USERNAME}" --password-stdin
 
 # Delete images if exist
 for image in "${IMAGES[@]}"; do
