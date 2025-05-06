@@ -183,9 +183,7 @@ resource "aws_volume_attachment" "lh_aws_ssd_volume_att_k3s" {
   force_detach = true
 }
 
-resource "talos_machine_secrets" "machine_secrets" {
-  talos_version = "v1.9"
-}
+resource "talos_machine_secrets" "machine_secrets" {}
 
 data "talos_machine_configuration" "controlplane" {
 
@@ -196,7 +194,7 @@ data "talos_machine_configuration" "controlplane" {
   machine_type       = "controlplane"
   machine_secrets    = talos_machine_secrets.machine_secrets.machine_secrets
   docs               = false
-  examples           = false  
+  examples           = false
   config_patches = [
     file("${path.module}/talos-patch.yaml")
   ]
@@ -211,7 +209,7 @@ data "talos_machine_configuration" "worker" {
   machine_type       = "worker"
   machine_secrets    = talos_machine_secrets.machine_secrets.machine_secrets
   docs               = false
-  examples           = false  
+  examples           = false
   config_patches = [
     file("${path.module}/talos-patch-worker.yaml")
   ]
