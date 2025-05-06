@@ -16,6 +16,7 @@ node {
     withCredentials([
         usernamePassword(credentialsId: CREDS_ID, passwordVariable: 'AWS_SECRET_KEY', usernameVariable: 'AWS_ACCESS_KEY'),
         usernamePassword(credentialsId: 'DOCKER_CREDS', passwordVariable: 'REGISTRY_PASSWORD', usernameVariable: 'REGISTRY_USERNAME'),
+        usernamePassword(credentialsId: 'APPCO_CREDS', passwordVariable: 'APPCO_PASSWORD', usernameVariable: 'APPCO_USERNAME'),
         string(credentialsId: REGISTRATION_CODE_ID, variable: 'REGISTRATION_CODE'),
         usernamePassword(credentialsId: 'LAB_API_KEY', passwordVariable: 'LAB_SECRET_KEY', usernameVariable: 'LAB_ACCESS_KEY'),
         string(credentialsId: 'LAB_URL', variable: 'LAB_URL'),
@@ -56,6 +57,8 @@ node {
                                             --env CUSTOM_LONGHORN_CSI_RESIZER_IMAGE=${CUSTOM_LONGHORN_CSI_RESIZER_IMAGE} \
                                             --env CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE=${CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE} \
                                             --env CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE=${CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE} \
+                                            --env APPCO_USERNAME=${APPCO_USERNAME} \
+                                            --env APPCO_PASSWORD=${APPCO_PASSWORD} \
                                             airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}
                     """
                 }
@@ -193,7 +196,7 @@ node {
                 //    sh "docker stop ${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 //    sh "docker rm -v ${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 //    sh "docker rmi ${imageName}"
-                //}
+               }
 
                 if (summary) {
                     summary_msg = "\nTest Summary - Failures: ${summary.failCount}, Skipped: ${summary.skipCount}, Passed: ${summary.passCount}  -- Job completed in ${currentBuild.durationString.replace(' and counting', '')}"

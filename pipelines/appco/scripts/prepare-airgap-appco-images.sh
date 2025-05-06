@@ -17,6 +17,9 @@ IMAGES=(
   "${CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE}"
 )
 
+# Login to AppCo
+docker login dp.apps.rancher.io -u "${APPCO_USERNAME}" -p "${APPCO_PASSWORD}"
+
 # Delete images if exist
 for image in "${IMAGES[@]}"; do
   echo "Deleting ${image} if exists"
