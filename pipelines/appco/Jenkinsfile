@@ -57,8 +57,6 @@ node {
                                             --env CUSTOM_LONGHORN_CSI_RESIZER_IMAGE=${CUSTOM_LONGHORN_CSI_RESIZER_IMAGE} \
                                             --env CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE=${CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE} \
                                             --env CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE=${CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE} \
-                                            --env APPCO_USERNAME=${APPCO_USERNAME} \
-                                            --env APPCO_PASSWORD=${APPCO_PASSWORD} \
                                             airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}
                     """
                 }
@@ -83,6 +81,8 @@ node {
                             --env REGISTRY_URL=${REGISTRY_URL} \
                             --env REGISTRY_USERNAME=${REGISTRY_USERNAME} \
                             --env REGISTRY_PASSWORD=${REGISTRY_PASSWORD} \
+                            --env APPCO_USERNAME=${APPCO_USERNAME} \
+                            --env APPCO_PASSWORD=${APPCO_PASSWORD} \
                             airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} ./pipelines/appco/scripts/prepare-airgap-appco-images.sh
                     """
                 }
@@ -196,7 +196,7 @@ node {
                 //    sh "docker stop ${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 //    sh "docker rm -v ${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 //    sh "docker rmi ${imageName}"
-               }
+               //}
 
                 if (summary) {
                     summary_msg = "\nTest Summary - Failures: ${summary.failCount}, Skipped: ${summary.skipCount}, Passed: ${summary.passCount}  -- Job completed in ${currentBuild.durationString.replace(' and counting', '')}"
