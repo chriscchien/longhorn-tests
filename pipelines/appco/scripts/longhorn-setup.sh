@@ -310,7 +310,7 @@ main(){
   # https://github.com/rancherlabs/harvester-access-lab/issues/17
   if [ "$LONGHORN_TEST_CLOUDPROVIDER" == "harvester" ]; then
     echo "LONGHORN_TEST_CLOUDPROVIDER is harvester. Sleeping for 300 seconds..."
-    #sleep 300s
+    sleep 300s
   fi
 
   # msg="failed to get package manager" error="operating systems (amzn, sl-micro) are not supported"
