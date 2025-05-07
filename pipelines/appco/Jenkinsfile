@@ -153,6 +153,8 @@ node {
                                        --env TF_VAR_custom_ssh_public_key="${CUSTOM_SSH_PUBLIC_KEY}" \
                                        --env QASE_TOKEN=${QASE_TOKEN} \
                                        --env QASE_PROJECT=LH \
+                                       --env APPCO_USERNAME=${APPCO_USERNAME} \
+                                       --env APPCO_PASSWORD=${APPCO_PASSWORD} \
                                        ${imageName}
                 """
 

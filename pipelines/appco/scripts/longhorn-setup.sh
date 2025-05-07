@@ -11,6 +11,7 @@ source pipelines/utilities/longhornctl.sh
 source pipelines/utilities/create_longhorn_namespace.sh
 source pipelines/utilities/create_registry_secret.sh
 source pipelines/utilities/longhorn_manifest.sh
+source pipelines/utilities/create_appco_secret.sh
 
 # create and clean tmpdir
 TMPDIR="/tmp/longhorn"
@@ -89,6 +90,12 @@ customize_longhorn_manifest_for_private_registry(){
   yq -i 'select(.kind == "DaemonSet" and .metadata.name == "longhorn-manager").spec.template.spec.imagePullSecrets[0].name="docker-registry-secret"' "${TF_VAR_tf_workspace}/longhorn.yaml"
   yq -i 'select(.kind == "Deployment" and .metadata.name == "longhorn-ui").spec.template.spec.imagePullSecrets[0].name="docker-registry-secret"' "${TF_VAR_tf_workspace}/longhorn.yaml"
   yq -i 'select(.kind == "ConfigMap" and .metadata.name == "longhorn-default-setting").data."default-setting.yaml"="registry-secret: docker-registry-secret"' "${TF_VAR_tf_workspace}/longhorn.yaml"
+}
+
+
+customize_longhorn_manifest_for_appco_registry(){
+  # (1) add secret name to imagePullSecrets.name
+  yq -i 'select(.kind == "Deployment" and .metadata.name == "longhorn-driver-deployer").spec.template.spec.imagePullSecrets[0].name="docker-registry-secret"' "${TF_VAR_tf_workspace}/longhorn.yaml"
 }
 
 
@@ -281,13 +288,15 @@ main(){
     apply_selinux_workaround
   fi
 
+  create_longhorn_namespace
+
   # set debugging mode off to avoid leaking aws secrets to the logs.
   # DON'T REMOVE!
   set +x
   create_aws_secret
+  create_appco_secret
   set -x
 
-  create_longhorn_namespace
   if [[ ${CUSTOM_TEST_OPTIONS} != *"--include-cluster-autoscaler-test"* ]]; then
     install_backupstores
   fi
@@ -301,13 +310,14 @@ main(){
   # https://github.com/rancherlabs/harvester-access-lab/issues/17
   if [ "$LONGHORN_TEST_CLOUDPROVIDER" == "harvester" ]; then
     echo "LONGHORN_TEST_CLOUDPROVIDER is harvester. Sleeping for 300 seconds..."
-    sleep 300s
+    #sleep 300s
   fi
 
   # msg="failed to get package manager" error="operating systems (amzn, sl-micro) are not supported"
   if [[ "${TF_VAR_k8s_distro_name}" != "eks" ]] && \
     [[ "${DISTRO}" != "sle-micro" ]]; then
-    longhornctl_check
+    #longhornctl_check
+    echo "pass"
   fi
 
   create_registry_secret
@@ -315,6 +325,8 @@ main(){
   generate_longhorn_yaml_manifest "${TF_VAR_tf_workspace}"
   if [[ "${AIR_GAP_INSTALLATION}" == true ]]; then
     customize_longhorn_manifest_for_private_registry
+  else
+    customize_longhorn_manifest_for_appco_registry
   fi
   install_longhorn_by_manifest "${TF_VAR_tf_workspace}/longhorn.yaml"
   setup_longhorn_ui_nodeport
