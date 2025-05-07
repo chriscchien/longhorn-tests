@@ -95,7 +95,7 @@ customize_longhorn_manifest_for_private_registry(){
 
 customize_longhorn_manifest_for_appco_registry(){
   # (1) add secret name to imagePullSecrets.name
-  yq -i 'select(.kind == "Deployment" and .metadata.name == "longhorn-driver-deployer").spec.template.spec.imagePullSecrets[0].name="docker-registry-secret"' "${TF_VAR_tf_workspace}/longhorn.yaml"
+  yq -i 'select(.kind == "Deployment" and .metadata.name == "longhorn-driver-deployer").spec.template.spec.imagePullSecrets[0].name="application-collection"' "${TF_VAR_tf_workspace}/longhorn.yaml"
 }
 
 
