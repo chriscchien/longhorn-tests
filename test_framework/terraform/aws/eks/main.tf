@@ -97,6 +97,7 @@ resource "aws_eks_cluster" "eks_cluster" {
   depends_on = [ aws_iam_role_policy_attachment.eks_iam_policy_attachment ]
   name     = local.cluster_name
   role_arn = aws_iam_role.eks_service_role.arn
+  version = "1.31"
   vpc_config {
     subnet_ids = module.vpc.public_subnets
   }
