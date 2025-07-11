@@ -52,18 +52,18 @@ TRANSIENT_VERSION_IMAGES=(
 echo "${APPCO_PASSWORD}" | docker login dp.apps.rancher.io --username "${APPCO_USERNAME}" --password-stdin
 
 # Delete images if exist
-for image in "${IMAGES[@]}" "${STABLE_VERSION_IMAGES[@]}" "${TRANSIENT_VERSION_IMAGES[@]}"; do
-  echo "Deleting ${image} if exists"
-  docker rmi -f "${image}" || true
-done
+#for image in "${IMAGES[@]}" "${STABLE_VERSION_IMAGES[@]}" "${TRANSIENT_VERSION_IMAGES[@]}"; do
+#  echo "Deleting ${image} if exists"
+#  docker rmi -f "${image}" || true
+#done
 
 # Delete tagged images if exist
-PRIVATE_REGISTERY_IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep '^lh-registry-') || true
+#PRIVATE_REGISTERY_IMAGES=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep '^lh-registry-') || true
 
-for image in ${PRIVATE_REGISTERY_IMAGES}; do
-  echo "Deleting ${image} if exists"
-  docker rmi -f "${image}" || true
-done
+#for image in ${PRIVATE_REGISTERY_IMAGES}; do
+#  echo "Deleting ${image} if exists"
+#  docker rmi -f "${image}" || true
+#done
 
 # Pull images
 for image in "${IMAGES[@]}"; do
