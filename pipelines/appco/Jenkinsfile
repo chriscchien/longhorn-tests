@@ -107,13 +107,11 @@ node {
                     env."${varName}" = value
                     echo "${varName} = ${value}"
                     }
-                //envArgs = vars.collect { key ->
-                //    "--env ${key}=${env.get(key) ?: ''}"
-                //}.join(" \\\n    ")   // join with backslashes + newline for readability
-                envArgs = vars.collect { key ->            
+
+                envArgs = vars.collect { key ->
                     def v = env."${key}" ?: ''
                     "--env ${key}=${v}"
-                }.join(" \\\n    ")
+                }.join(" \\\n ")
 
 
                 sh "docker stop fetch-test-images-${JOB_BASE_NAME}-${BUILD_NUMBER}"
