@@ -165,7 +165,7 @@ node {
                             --env LONGHORN_STABLE_VERSION_CHART_URI=${LONGHORN_STABLE_VERSION_CHART_URI} \
                             --env LONGHORN_TRANSIENT_VERSION=${LONGHORN_TRANSIENT_VERSION} \
                             --env LONGHORN_TRANSIENT_VERSION_CHART_URI=${LONGHORN_TRANSIENT_VERSION_CHART_URI} \
-                            ${envArgs()} \
+                            ${envArgs} \
                             airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} \
                             bash -c './pipelines/appco/scripts/prepare_airgap_appco_images.sh'
                     """
