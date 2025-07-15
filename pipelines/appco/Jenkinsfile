@@ -12,6 +12,7 @@ def USE_HDD = params.USE_HDD ? params.USE_HDD : false
 def WORKSPACE = "/src/longhorn-tests"
 def LONGHORN_INSTALL_METHOD = AIR_GAP_INSTALLATION ? 'manifest' : 'helm'
 
+def envArgs
 def vars = [
         'CUSTOM_LONGHORN_ENGINE_IMAGE',
         'CUSTOM_LONGHORN_INSTANCE_MANAGER_IMAGE',
@@ -106,6 +107,10 @@ node {
                     env."${varName}" = value
                     echo "${varName} = ${value}"
                     }
+                envArgs = vars.collect { key ->
+                    // env[key] is equivalent to env.KEY
+                    "--env ${key}=${env[key] ?: ''}"
+                }.join(" \\\n    ")   // join with backslashes + newline for readability
 
                 sh "docker stop fetch-test-images-${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 sh "docker rm -v fetch-test-images-${JOB_BASE_NAME}-${BUILD_NUMBER}"
@@ -161,45 +166,7 @@ node {
                             --env LONGHORN_STABLE_VERSION_CHART_URI=${LONGHORN_STABLE_VERSION_CHART_URI} \
                             --env LONGHORN_TRANSIENT_VERSION=${LONGHORN_TRANSIENT_VERSION} \
                             --env LONGHORN_TRANSIENT_VERSION_CHART_URI=${LONGHORN_TRANSIENT_VERSION_CHART_URI} \
-                            --env CUSTOM_LONGHORN_ENGINE_IMAGE=${env.CUSTOM_LONGHORN_ENGINE_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_INSTANCE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_INSTANCE_MANAGER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_MANAGER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_SHARE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_SHARE_MANAGER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_BACKING_IMAGE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_UI_IMAGE=${env.CUSTOM_LONGHORN_UI_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_SUPPORT_BUNDLE_IMAGE=${env.CUSTOM_LONGHORN_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_ATTACHER_IMAGE=${env.CUSTOM_LONGHORN_CSI_ATTACHER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_PROVISIONER_IMAGE=${env.CUSTOM_LONGHORN_CSI_PROVISIONER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_NODE_DRIVER_REGISTRAR_IMAGE=${env.CUSTOM_LONGHORN_CSI_NODE_DRIVER_REGISTRAR_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_RESIZER_IMAGE=${env.CUSTOM_LONGHORN_CSI_RESIZER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE=${env.CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                            --env CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE=${env.CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE ?: ''} \
-                            --env STABLE_MANAGER_IMAGE=${env.STABLE_MANAGER_IMAGE ?: ''} \
-                            --env STABLE_ENGINE_IMAGE=${env.STABLE_ENGINE_IMAGE ?: ''} \
-                            --env STABLE_INSTANCE_MANAGER_IMAGE=${env.STABLE_INSTANCE_MANAGER_IMAGE ?: ''} \
-                            --env STABLE_SHARE_MANAGER_IMAGE=${env.STABLE_SHARE_MANAGER_IMAGE ?: ''} \
-                            --env STABLE_BACKING_IMAGE_MANAGER_IMAGE=${env.STABLE_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                            --env STABLE_UI_IMAGE=${env.STABLE_UI_IMAGE ?: ''} \
-                            --env STABLE_SUPPORT_BUNDLE_IMAGE=${env.STABLE_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                            --env STABLE_CSI_ATTACHER_IMAGE=${env.STABLE_CSI_ATTACHER_IMAGE ?: ''} \
-                            --env STABLE_CSI_PROVISIONER_IMAGE=${env.STABLE_CSI_PROVISIONER_IMAGE ?: ''} \
-                            --env STABLE_CSI_NODE_REGISTRAR_IMAGE=${env.STABLE_CSI_NODE_REGISTRAR_IMAGE ?: ''} \
-                            --env STABLE_CSI_RESIZER_IMAGE=${env.STABLE_CSI_RESIZER_IMAGE ?: ''} \
-                            --env STABLE_CSI_SNAPSHOTTER_IMAGE=${env.STABLE_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                            --env STABLE_CSI_LIVENESSPROBE_IMAGE=${env.STABLE_CSI_LIVENESSPROBE_IMAGE ?: ''} \
-                            --env TRANSIENT_MANAGER_IMAGE=${env.TRANSIENT_MANAGER_IMAGE ?: ''} \
-                            --env TRANSIENT_ENGINE_IMAGE=${env.TRANSIENT_ENGINE_IMAGE ?: ''} \
-                            --env TRANSIENT_INSTANCE_MANAGER_IMAGE=${env.TRANSIENT_INSTANCE_MANAGER_IMAGE ?: ''} \
-                            --env TRANSIENT_SHARE_MANAGER_IMAGE=${env.TRANSIENT_SHARE_MANAGER_IMAGE ?: ''} \
-                            --env TRANSIENT_BACKING_IMAGE_MANAGER_IMAGE=${env.TRANSIENT_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                            --env TRANSIENT_UI_IMAGE=${env.TRANSIENT_UI_IMAGE ?: ''} \
-                            --env TRANSIENT_SUPPORT_BUNDLE_IMAGE=${env.TRANSIENT_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_ATTACHER_IMAGE=${env.TRANSIENT_CSI_ATTACHER_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_PROVISIONER_IMAGE=${env.TRANSIENT_CSI_PROVISIONER_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_NODE_REGISTRAR_IMAGE=${env.TRANSIENT_CSI_NODE_REGISTRAR_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_RESIZER_IMAGE=${env.TRANSIENT_CSI_RESIZER_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_SNAPSHOTTER_IMAGE=${env.TRANSIENT_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                            --env TRANSIENT_CSI_LIVENESSPROBE_IMAGE=${env.TRANSIENT_CSI_LIVENESSPROBE_IMAGE ?: ''} \
+                            ${envArgs()} \
                             airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} \
                             bash -c './pipelines/appco/scripts/prepare_airgap_appco_images.sh'
                     """
@@ -231,45 +198,6 @@ node {
                                        --env REGISTRY_URL=${REGISTRY_URL} \
                                        --env REGISTRY_USERNAME=${REGISTRY_USERNAME} \
                                        --env REGISTRY_PASSWORD=${REGISTRY_PASSWORD} \
-                                       --env CUSTOM_LONGHORN_ENGINE_IMAGE=${env.CUSTOM_LONGHORN_ENGINE_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_INSTANCE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_INSTANCE_MANAGER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_MANAGER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_SHARE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_SHARE_MANAGER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_BACKING_IMAGE_MANAGER_IMAGE=${env.CUSTOM_LONGHORN_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_UI_IMAGE=${env.CUSTOM_LONGHORN_UI_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_SUPPORT_BUNDLE_IMAGE=${env.CUSTOM_LONGHORN_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_ATTACHER_IMAGE=${env.CUSTOM_LONGHORN_CSI_ATTACHER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_PROVISIONER_IMAGE=${env.CUSTOM_LONGHORN_CSI_PROVISIONER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_NODE_DRIVER_REGISTRAR_IMAGE=${env.CUSTOM_LONGHORN_CSI_NODE_DRIVER_REGISTRAR_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_RESIZER_IMAGE=${env.CUSTOM_LONGHORN_CSI_RESIZER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE=${env.CUSTOM_LONGHORN_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                                       --env CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE=${env.CUSTOM_LONGHORN_CSI_LIVENESSPROBE_IMAGE ?: ''} \
-                                       --env STABLE_MANAGER_IMAGE=${env.STABLE_MANAGER_IMAGE ?: ''} \
-                                       --env STABLE_ENGINE_IMAGE=${env.STABLE_ENGINE_IMAGE ?: ''} \
-                                       --env STABLE_INSTANCE_MANAGER_IMAGE=${env.STABLE_INSTANCE_MANAGER_IMAGE ?: ''} \
-                                       --env STABLE_SHARE_MANAGER_IMAGE=${env.STABLE_SHARE_MANAGER_IMAGE ?: ''} \
-                                       --env STABLE_BACKING_IMAGE_MANAGER_IMAGE=${env.STABLE_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                                       --env STABLE_UI_IMAGE=${env.STABLE_UI_IMAGE ?: ''} \
-                                       --env STABLE_SUPPORT_BUNDLE_IMAGE=${env.STABLE_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                                       --env STABLE_CSI_ATTACHER_IMAGE=${env.STABLE_CSI_ATTACHER_IMAGE ?: ''} \
-                                       --env STABLE_CSI_PROVISIONER_IMAGE=${env.STABLE_CSI_PROVISIONER_IMAGE ?: ''} \
-                                       --env STABLE_CSI_NODE_REGISTRAR_IMAGE=${env.STABLE_CSI_NODE_REGISTRAR_IMAGE ?: ''} \
-                                       --env STABLE_CSI_RESIZER_IMAGE=${env.STABLE_CSI_RESIZER_IMAGE ?: ''} \
-                                       --env STABLE_CSI_SNAPSHOTTER_IMAGE=${env.STABLE_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                                       --env STABLE_CSI_LIVENESSPROBE_IMAGE=${env.STABLE_CSI_LIVENESSPROBE_IMAGE ?: ''} \
-                                       --env TRANSIENT_MANAGER_IMAGE=${env.TRANSIENT_MANAGER_IMAGE ?: ''} \
-                                       --env TRANSIENT_ENGINE_IMAGE=${env.TRANSIENT_ENGINE_IMAGE ?: ''} \
-                                       --env TRANSIENT_INSTANCE_MANAGER_IMAGE=${env.TRANSIENT_INSTANCE_MANAGER_IMAGE ?: ''} \
-                                       --env TRANSIENT_SHARE_MANAGER_IMAGE=${env.TRANSIENT_SHARE_MANAGER_IMAGE ?: ''} \
-                                       --env TRANSIENT_BACKING_IMAGE_MANAGER_IMAGE=${env.TRANSIENT_BACKING_IMAGE_MANAGER_IMAGE ?: ''} \
-                                       --env TRANSIENT_UI_IMAGE=${env.TRANSIENT_UI_IMAGE ?: ''} \
-                                       --env TRANSIENT_SUPPORT_BUNDLE_IMAGE=${env.TRANSIENT_SUPPORT_BUNDLE_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_ATTACHER_IMAGE=${env.TRANSIENT_CSI_ATTACHER_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_PROVISIONER_IMAGE=${env.TRANSIENT_CSI_PROVISIONER_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_NODE_REGISTRAR_IMAGE=${env.TRANSIENT_CSI_NODE_REGISTRAR_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_RESIZER_IMAGE=${env.TRANSIENT_CSI_RESIZER_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_SNAPSHOTTER_IMAGE=${env.TRANSIENT_CSI_SNAPSHOTTER_IMAGE ?: ''} \
-                                       --env TRANSIENT_CSI_LIVENESSPROBE_IMAGE=${env.TRANSIENT_CSI_LIVENESSPROBE_IMAGE ?: ''} \
                                        --env LONGHORN_TESTS_CUSTOM_IMAGE=${LONGHORN_TESTS_CUSTOM_IMAGE} \
                                        --env CUSTOM_TEST_OPTIONS="${CUSTOM_TEST_OPTIONS}" \
                                        --env DISTRO=${DISTRO} \
@@ -306,6 +234,7 @@ node {
                                        --env QASE_PROJECT=LH \
                                        --env APPCO_TEST="true" \
                                        --env LONGHORN_INSTALL_METHOD=${LONGHORN_INSTALL_METHOD} \
+                                       ${envArgs()} \
                                        ${imageName}
                 """
 
