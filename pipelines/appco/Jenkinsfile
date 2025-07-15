@@ -233,7 +233,7 @@ node {
                                        --env QASE_PROJECT=LH \
                                        --env APPCO_TEST="true" \
                                        --env LONGHORN_INSTALL_METHOD=${LONGHORN_INSTALL_METHOD} \
-                                       ${envArgs()} \
+                                       ${envArgs} \
                                        ${imageName}
                 """
 
