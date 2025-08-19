@@ -128,12 +128,12 @@ node {
                     sh "docker rmi airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
                 }
 
-                if (sh (script: "docker container inspect ${JOB_BASE_NAME}-${BUILD_NUMBER} > /dev/null 2>&1", returnStatus: true) == 0) {
-                    sh "docker exec ${JOB_BASE_NAME}-${BUILD_NUMBER} pipelines/utilities/cleanup.sh"
-                    sh "docker stop ${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                    sh "docker rm -v ${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                    sh "docker rmi ${imageName}"
-                }
+                //if (sh (script: "docker container inspect ${JOB_BASE_NAME}-${BUILD_NUMBER} > /dev/null 2>&1", returnStatus: true) == 0) {
+                //    sh "docker exec ${JOB_BASE_NAME}-${BUILD_NUMBER} pipelines/utilities/cleanup.sh"
+                //    sh "docker stop ${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                //    sh "docker rm -v ${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                //    sh "docker rmi ${imageName}"
+                //}
 
                 if (summary) {
                     summary_msg = "\nTest Summary - Failures: ${summary.failCount}, Skipped: ${summary.skipCount}, Passed: ${summary.passCount}  -- Job completed in ${currentBuild.durationString.replace(' and counting', '')}"
