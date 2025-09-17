@@ -53,7 +53,7 @@ tag_and_push_custom_image() {
   local image="$1"
   local target_image=""
 
-  target_image="${image/dp.apps.rancher.io/${APPCO_LONGHORN_COMPOMENT_REGISTRY}}"
+  target_image="${image/dp.apps.rancher.io/${APPCO_LONGHORN_COMPONENT_REGISTRY}}"
   target_image="${REGISTRY_URL}/${target_image}"
 
   echo "Tagging ${image} to ${target_image}"
