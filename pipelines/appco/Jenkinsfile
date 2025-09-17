@@ -91,6 +91,7 @@ node {
                         --env LONGHORN_CHART_URI=${LONGHORN_CHART_URI} \
                         --env LONGHORN_VERSION=${LONGHORN_VERSION} \
                         --env APPCO_LONGHORN_COMPOMENT_REGISTRY=${APPCO_LONGHORN_COMPOMENT_REGISTRY} \
+                        --env LONGHORN_COMPOMENT_TAG=${LONGHORN_COMPOMENT_TAG} \
                         --env LONGHORN_UPGRADE_TEST=${LONGHORN_UPGRADE_TEST} \
                         --env LONGHORN_STABLE_VERSION=${LONGHORN_STABLE_VERSION} \
                         --env LONGHORN_STABLE_VERSION_CHART_URI=${LONGHORN_STABLE_VERSION_CHART_URI} \
@@ -165,6 +166,7 @@ node {
                             --env LONGHORN_CHART_URI=${LONGHORN_CHART_URI} \
                             --env LONGHORN_VERSION=${LONGHORN_VERSION} \
                             --env APPCO_LONGHORN_COMPOMENT_REGISTRY=${APPCO_LONGHORN_COMPOMENT_REGISTRY} \
+                            --env LONGHORN_COMPOMENT_TAG=${LONGHORN_COMPOMENT_TAG} \
                             --env LONGHORN_UPGRADE_TEST=${LONGHORN_UPGRADE_TEST} \
                             --env LONGHORN_STABLE_VERSION=${LONGHORN_STABLE_VERSION} \
                             --env LONGHORN_STABLE_VERSION_CHART_URI=${LONGHORN_STABLE_VERSION_CHART_URI} \
@@ -195,6 +197,7 @@ node {
                                        --env LONGHORN_CHART_URI=${LONGHORN_CHART_URI} \
                                        --env LONGHORN_VERSION=${LONGHORN_VERSION} \
                                        --env APPCO_LONGHORN_COMPOMENT_REGISTRY=${APPCO_LONGHORN_COMPOMENT_REGISTRY} \
+                                       --env LONGHORN_COMPOMENT_TAG=${LONGHORN_COMPOMENT_TAG} \
                                        --env APPCO_USERNAME=${APPCO_USERNAME} \
                                        --env APPCO_PASSWORD=${APPCO_PASSWORD} \
                                        --env JOB_NAME=${JOB_BASE_NAME}-${BUILD_NUMBER} \

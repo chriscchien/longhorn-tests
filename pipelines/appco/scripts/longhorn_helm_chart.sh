@@ -5,10 +5,51 @@ set -x
 source pipelines/utilities/longhorn_status.sh
 HELM_INSTALL_RETRY_LIMIT=10
 
+IMAGE_PULL_SECRET_ARGS=()
+TAG_ARGS=()
+
+set_air_repository_args() {
+  local chart_uri="$1"
+  local args=()
+
+  if [[ "${AIR_GAP_INSTALLATION}" == true ]]; then
+    if [[ "${chart_uri}" == "longhorn/longhorn" ]]; then
+      FINAL_REGISTRY_URL="${REGISTRY_URL}"
+    elif [[ -z "${APPCO_LONGHORN_COMPOMENT_REGISTRY}" ]]; then
+      FINAL_REGISTRY_URL="${REGISTRY_URL}/dp.apps.rancher.io"
+    else
+      FINAL_REGISTRY_URL="${REGISTRY_URL}/${APPCO_LONGHORN_COMPOMENT_REGISTRY}"
+    fi
+
+    args+=(
+      --set privateRegistry.createSecret=false
+      --set privateRegistry.registrySecret="docker-registry-secret"
+      --set privateRegistry.registryUrl="${FINAL_REGISTRY_URL}"
+    )
+  else
+    IMAGE_PULL_SECRET_ARGS+=(--set global.imagePullSecrets="{application-collection}")
+  fi
+
+  echo "${args[@]}"
+}
+
 helm_login_appco(){
   helm registry login dp.apps.rancher.io \
     --username "${APPCO_USERNAME}" \
     --password "${APPCO_PASSWORD}"
+}
+
+set_longhorn_tag_args() {
+  if [[ -n "${LONGHORN_COMPOMENT_TAG}" ]]; then
+    TAG_ARGS=(
+      --set image.longhorn.engine.tag="${LONGHORN_COMPOMENT_TAG}"
+      --set image.longhorn.manager.tag="${LONGHORN_COMPOMENT_TAG}"
+      --set image.longhorn.ui.tag="${LONGHORN_COMPOMENT_TAG}"
+      --set image.longhorn.instanceManager.tag="${LONGHORN_COMPOMENT_TAG}"
+      --set image.longhorn.shareManager.tag="${LONGHORN_COMPOMENT_TAG}"
+      --set image.longhorn.backingImageManager.tag="${LONGHORN_COMPOMENT_TAG}"
+    )
+  fi
 }
 
 install_longhorn_custom(){
@@ -17,20 +58,22 @@ install_longhorn_custom(){
     helm repo update
     helm upgrade --install longhorn longhorn/longhorn \
       --namespace "${LONGHORN_NAMESPACE}" \
-      --version "${LONGHORN_VERSION}"
+      --version "${LONGHORN_VERSION}" \
+      $(set_air_repository_args "${LONGHORN_CHART_URI}")
   else
     # set debugging mode off to avoid leaking appco secrets to the logs.
     # DON'T REMOVE!    
     set +x
     helm_login_appco
     set -x
-
+    set_longhorn_tag_args
     for ((i=1; i<=HELM_INSTALL_RETRY_LIMIT; i++)); do
       if [[ -z "${APPCO_LONGHORN_COMPOMENT_REGISTRY}" ]]; then
         helm upgrade --install longhorn "${LONGHORN_CHART_URI}" \
           --version "${LONGHORN_VERSION}" \
           --namespace "${LONGHORN_NAMESPACE}" \
-          --set global.imagePullSecrets="{application-collection}"
+          "${IMAGE_PULL_SECRET_ARGS[@]}" \
+          $(set_air_repository_args "${LONGHORN_CHART_URI}")
       else
         helm upgrade --install longhorn "${LONGHORN_CHART_URI}" \
           --version "${LONGHORN_VERSION}" \
@@ -41,7 +84,10 @@ install_longhorn_custom(){
           --set image.longhorn.instanceManager.registry="${APPCO_LONGHORN_COMPOMENT_REGISTRY}" \
           --set image.longhorn.shareManager.registry="${APPCO_LONGHORN_COMPOMENT_REGISTRY}" \
           --set image.longhorn.backingImageManager.registry="${APPCO_LONGHORN_COMPOMENT_REGISTRY}" \
-          --set global.imagePullSecrets="{application-collection}"
+          --set privateRegistry.registryUrl="" \
+          "${IMAGE_PULL_SECRET_ARGS[@]}" \
+          "${TAG_ARGS[@]}" \
+          $(set_air_repository_args "${LONGHORN_CHART_URI}")
       fi
 
       if [[ $? -eq 0 ]]; then
@@ -67,13 +113,15 @@ install_longhorn_stable(){
     helm repo update
     helm upgrade --install longhorn longhorn/longhorn \
       --namespace "${LONGHORN_NAMESPACE}" \
-      --version "${LONGHORN_STABLE_VERSION}"
+      --version "${LONGHORN_STABLE_VERSION}" \
+      $(set_air_repository_args "${LONGHORN_STABLE_VERSION_CHART_URI}")
   else
     for ((i=1; i<=HELM_INSTALL_RETRY_LIMIT; i++)); do
       helm upgrade --install longhorn "${LONGHORN_STABLE_VERSION_CHART_URI}" \
         --version "${LONGHORN_STABLE_VERSION}" \
         --namespace "${LONGHORN_NAMESPACE}" \
-        --set global.imagePullSecrets="{application-collection}"
+        "${IMAGE_PULL_SECRET_ARGS[@]}" \
+        $(set_air_repository_args "${LONGHORN_STABLE_VERSION_CHART_URI}")
       if [[ $? -eq 0 ]]; then
         echo "Helm install/upgrade succeeded on attempt $i"
         break
@@ -97,13 +145,15 @@ install_longhorn_transient(){
     helm repo update
     helm upgrade --install longhorn longhorn/longhorn \
       --namespace "${LONGHORN_NAMESPACE}" \
-      --version "${LONGHORN_TRANSIENT_VERSION}"
+      --version "${LONGHORN_TRANSIENT_VERSION}" \
+      $(set_air_repository_args "${LONGHORN_TRANSIENT_VERSION_CHART_URI}")
   else
     for ((i=1; i<=HELM_INSTALL_RETRY_LIMIT; i++)); do
       helm upgrade --install longhorn "${LONGHORN_TRANSIENT_VERSION_CHART_URI}" \
         --version "${LONGHORN_TRANSIENT_VERSION}" \
         --namespace "${LONGHORN_NAMESPACE}" \
-        --set global.imagePullSecrets="{application-collection}"
+        "${IMAGE_PULL_SECRET_ARGS[@]}" \
+        $(set_air_repository_args "${LONGHORN_TRANSIENT_VERSION_CHART_URI}")
       if [[ $? -eq 0 ]]; then
         echo "Helm install/upgrade succeeded on attempt $i"
         break
