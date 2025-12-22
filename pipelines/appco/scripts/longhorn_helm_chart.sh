@@ -17,7 +17,7 @@ set_secret_args() {
     elif [[ -z "${APPCO_LONGHORN_COMPONENT_IMAGE_PATH}" || "${chart_uri}" == *"dp.apps.rancher.io"* ]]; then
       FINAL_REGISTRY_URL="${REGISTRY_URL}/dp.apps.rancher.io"
     else
-      FINAL_REGISTRY_URL="${REGISTRY_URL}/${APPCO_LONGHORN_COMPONENT_IMAGE_PATH}"
+      FINAL_REGISTRY_URL="${REGISTRY_URL}"
     fi
 
     SECRET_ARGS+=(
