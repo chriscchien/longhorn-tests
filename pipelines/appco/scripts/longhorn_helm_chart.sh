@@ -12,14 +12,14 @@ set_secret_args() {
   SECRET_ARGS=()
 
   if [[ "${AIR_GAP_INSTALLATION}" == true ]]; then
-    if [[ "${chart_uri}" == "longhorn/longhorn" ]]; then
-      FINAL_REGISTRY_URL="${REGISTRY_URL}"
-    elif [[ -z "${APPCO_LONGHORN_COMPONENT_IMAGE_PATH}" || "${chart_uri}" == *"dp.apps.rancher.io"* ]]; then
-      FINAL_REGISTRY_URL="${REGISTRY_URL}/dp.apps.rancher.io"
-    else
-      FINAL_REGISTRY_URL="${REGISTRY_URL}"
-    fi
-
+    #if [[ "${chart_uri}" == "longhorn/longhorn" ]]; then
+    #  FINAL_REGISTRY_URL="${REGISTRY_URL}"
+    #elif [[ -z "${APPCO_LONGHORN_COMPONENT_IMAGE_PATH}" || "${chart_uri}" == *"dp.apps.rancher.io"* ]]; then
+    #  FINAL_REGISTRY_URL="${REGISTRY_URL}/dp.apps.rancher.io"
+    #else
+    #  FINAL_REGISTRY_URL="${REGISTRY_URL}"
+    #fi
+    FINAL_REGISTRY_URL="${REGISTRY_URL}"
     SECRET_ARGS+=(
       --set privateRegistry.createSecret=false
       --set privateRegistry.registrySecret="docker-registry-secret"
