@@ -109,7 +109,7 @@ install_longhorn_custom(){
   
   helm repo add longhorn https://charts.longhorn.io
   helm repo update
-  helm upgrade --install longhorn longhorn/longhorn \
+  helm upgrade --install longhorn "${LONGHORN_CHART_URI}" \
     --namespace "${LONGHORN_NAMESPACE}" \
     --version "${LONGHORN_VERSION}" \
     "${REGISTRY_ARGS[@]}" \
