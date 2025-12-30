@@ -544,6 +544,12 @@ def snapshot_test(client, volume_name, backing_image):  # NOQA
     assert snapMap[snap2.name].parent == snap1.name
     assert "volume-head" in snapMap[snap2.name].children.keys()
     if DATA_ENGINE == "v1":
+        for _ in range(RETRY_COUNTS):
+            snapshots = volume.snapshotList(volume=volume_name)
+            snapMap = {snap.name: snap for snap in snapshots}
+            if snap3.name in snapMap[snap2.name].children.keys():
+                break
+            time.sleep(RETRY_INTERVAL)
         assert snap3.name in snapMap[snap2.name].children.keys()
     assert snapMap[snap2.name].removed is False
 
