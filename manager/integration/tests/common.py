@@ -5046,24 +5046,39 @@ def fail_replica_expansion(client, api, volname, size, replicas=None):
         volume = client.by_id_volume(volname)
         replicas = volume.replicas
 
-    for r in replicas:
-        tmp_meta_file_name = \
-            EXPANSION_SNAP_TMP_META_NAME_PATTERN % size
-        # os.path.join() cannot deal with the path containing "/"
-        cmd = [
-            '/bin/sh', '-c',
-            'mkdir %s && sync' %
-            (INSTANCE_MANAGER_HOST_PATH_PREFIX + r.dataPath +
-             "/" + tmp_meta_file_name)
-        ]
-        if not r.instanceManagerName:
-            raise Exception(
-                "Should use replica objects in the running volume,"
-                "otherwise the field r.instanceManagerName is empty")
-        stream(api.connect_get_namespaced_pod_exec,
-               r.instanceManagerName,
-               LONGHORN_NAMESPACE, command=cmd,
-               stderr=True, stdin=False, stdout=True, tty=False)
+    if DATA_ENGINE == "v2":
+        for r in replicas:
+            if not r.instanceManagerName:
+                raise Exception(
+                    "Should use replica objects in the running volume,"
+                    "otherwise the field r.instanceManagerName is empty")
+
+            # Send SIGSTOP to pause SPDK target process
+            # This causes BdevLvolResize JSON-RPC call to timeout
+            cmd = ['/bin/sh', '-c', 'kill -STOP $(pgrep -f "^spdk_tgt" | head -1)'] # NOQA
+            stream(api.connect_get_namespaced_pod_exec,
+                   r.instanceManagerName,
+                   LONGHORN_NAMESPACE, command=cmd,
+                   stderr=True, stdin=False, stdout=True, tty=False)
+    else:
+        for r in replicas:
+            tmp_meta_file_name = \
+                EXPANSION_SNAP_TMP_META_NAME_PATTERN % size
+            # os.path.join() cannot deal with the path containing "/"
+            cmd = [
+                '/bin/sh', '-c',
+                'mkdir %s && sync' %
+                (INSTANCE_MANAGER_HOST_PATH_PREFIX + r.dataPath +
+                 "/" + tmp_meta_file_name)
+            ]
+            if not r.instanceManagerName:
+                raise Exception(
+                    "Should use replica objects in the running volume,"
+                    "otherwise the field r.instanceManagerName is empty")
+            stream(api.connect_get_namespaced_pod_exec,
+                   r.instanceManagerName,
+                   LONGHORN_NAMESPACE, command=cmd,
+                   stderr=True, stdin=False, stdout=True, tty=False)
 
 
 def fix_replica_expansion_failure(client, api, volname, size, replicas=None):

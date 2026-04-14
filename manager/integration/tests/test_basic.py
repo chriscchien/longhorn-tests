@@ -3100,6 +3100,141 @@ def test_expansion_canceling(client, core_api, volume_name, pod, pvc, storage_cl
 
 @pytest.mark.v2_volume_test  # NOQA
 @pytest.mark.coretest  # NOQA
+def test_v2_expansion_auto_recovery(client, core_api, volume_name, pod, pvc, storage_class):  # NOQA
+    """
+    Test v2 expansion auto-recovery from transient failures
+
+    Note: v2 expansion failures are transient due to SPDK RPC timeout when
+    spdk_tgt is stopped. The expansion failure state is transient reflected in
+    Engine CR (https://github.com/longhorn/longhorn/issues/12903#issuecomment-4427128996).  # NOQA
+    Volume automatically recovers to expanded size without explicit cancel.
+
+    1. Create a volume, then create the corresponding PV, PVC and Pod.
+    2. Generate test data and write to the pod
+    3. Delete the pod and wait for volume detachment
+    4. Induce transient failure condition for offline expansion
+    5. Try offline expansion via Longhorn API
+    6. Verify volume auto-recovers and expansion completes
+    7. Create a new pod and validate the volume content
+    8. Induce transient failure condition for online expansion
+    9. Try online expansion via Longhorn API
+    10. Verify volume auto-recovers and expansion completes
+    11. Validate the volume content again
+    12. Retry online expansion to larger size, then verify expansion completes
+    13. Validate the volume content, then check if data writing looks fine
+    14. Clean up pod, PVC, and PV
+    """
+    if DATA_ENGINE != "v2":
+        pytest.skip("Skip test case for non-v2 data engine")
+
+    storage_class['parameters']['numberOfReplicas'] = "2"
+    create_storage_class(storage_class)
+
+    pod_name = 'expand-auto-recovery-test'
+    expansion_pvc_name = pod_name + "-pvc"
+    pvc['metadata']['name'] = expansion_pvc_name
+    pvc['spec']['storageClassName'] = storage_class['metadata']['name']
+    pvc['spec']['resources']['requests']['storage'] = SIZE
+    common.create_pvc(pvc)
+
+    pod['metadata']['name'] = pod_name
+    pod['spec']['volumes'] = [{
+        'name': pod['spec']['containers'][0]['volumeMounts'][0]['name'],
+        'persistentVolumeClaim': {'claimName': expansion_pvc_name},
+    }]
+    create_and_wait_pod(core_api, pod)
+
+    pv = common.wait_and_get_pv_for_pvc(core_api, expansion_pvc_name)
+    assert pv.status.phase == "Bound"
+    expansion_pv_name = pv.metadata.name
+    volume_name = pv.spec.csi.volume_handle
+
+    volume = client.by_id_volume(volume_name)
+    replicas = volume.replicas
+
+    test_data1 = generate_random_data(VOLUME_RWTEST_SIZE)
+    write_pod_volume_data(core_api, pod_name, test_data1, "test_file1")
+
+    delete_and_wait_pod(core_api, pod_name)
+    volume = wait_for_volume_detached(client, volume_name)
+
+    # Induce transient failure for offline expansion
+    fail_replica_expansion(client, core_api,
+                           volume_name, EXPAND_SIZE, replicas)
+
+    # Try offline expansion - should auto-recover and complete
+    volume.expand(size=EXPAND_SIZE)
+    wait_for_volume_expansion(client, volume_name)
+    wait_for_expansion_error_clear(client, volume_name)
+    wait_for_volume_detached(client, volume_name)
+    volume = client.by_id_volume(volume_name)
+    assert volume.state == "detached"
+    # Volume automatically expands despite the transient failure
+    assert volume.size == EXPAND_SIZE
+
+    # Verify the data after auto-recovery
+    create_and_wait_pod(core_api, pod)
+    volume = wait_for_volume_healthy(client, volume_name)
+    resp = read_volume_data(core_api, pod_name, "test_file1")
+    assert resp == test_data1
+    test_data2 = generate_random_data(VOLUME_RWTEST_SIZE)
+    write_pod_volume_data(core_api, pod_name, test_data2, "test_file2")
+    create_snapshot(client, volume_name)
+
+    # Induce transient failure for online expansion
+    expand_size = str(128 * Mi)
+    volume = client.by_id_volume(volume_name)
+    replicas = volume.replicas
+    fail_replica_expansion(client, core_api,
+                           volume_name, expand_size, replicas)
+
+    # Online expansion - should auto-recover and complete
+    volume.expand(size=expand_size)
+    wait_for_volume_expansion(client, volume_name)
+    wait_for_expansion_error_clear(client, volume_name)
+    volume = wait_for_volume_healthy(client, volume_name)
+    # Volume automatically expands despite the transient failure
+    assert volume.size == expand_size
+
+    # Validate the data content again
+    resp = read_volume_data(core_api, pod_name, "test_file1")
+    assert resp == test_data1
+    resp = read_volume_data(core_api, pod_name, "test_file2")
+    assert resp == test_data2
+
+    # Restart the pod before final expansion to ensure clean state
+    delete_and_wait_pod(core_api, pod_name)
+    create_and_wait_pod(core_api, pod)
+    volume = wait_for_volume_healthy(client, volume_name)
+
+    # Retry online expansion to larger size, should succeed
+    expand_size = str(256 * Mi)
+    volume = client.by_id_volume(volume_name)
+    volume.expand(size=expand_size)
+    wait_for_volume_expansion(client, volume_name, expected_size=expand_size)
+    volume = wait_for_volume_healthy(client, volume_name)
+    volume = client.by_id_volume(volume_name)
+    engine = get_volume_engine(volume)
+    assert volume.size == expand_size
+    assert volume.size == engine.size
+
+    # Write more data then re-validate the data content
+    test_data3 = generate_random_data(VOLUME_RWTEST_SIZE)
+    write_pod_volume_data(core_api, pod_name, test_data3, "test_file3")
+    resp = read_volume_data(core_api, pod_name, "test_file1")
+    assert resp == test_data1
+    resp = read_volume_data(core_api, pod_name, "test_file2")
+    assert resp == test_data2
+    resp = read_volume_data(core_api, pod_name, "test_file3")
+    assert resp == test_data3
+
+    delete_and_wait_pod(core_api, pod_name)
+    delete_and_wait_pvc(core_api, expansion_pvc_name)
+    delete_and_wait_pv(core_api, expansion_pv_name)
+
+
+@pytest.mark.v2_volume_test  # NOQA
+@pytest.mark.coretest  # NOQA
 def test_running_volume_with_scheduling_failure(
         client, core_api, volume_name, pod):  # NOQA
     """
