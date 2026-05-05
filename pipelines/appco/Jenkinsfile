@@ -92,6 +92,9 @@ node {
         string(credentialsId: 'LAB_URL', variable: 'LAB_URL'),
         file(credentialsId: 'SUSE_INTERNAL_CA', variable: 'CA_CERT_PATH'),  // Add the secret file credential here
         string(credentialsId: 'QASE_TOKEN', variable: 'QASE_TOKEN'),
+        string(credentialsId: 'temp_registry_url', variable: 'TEMP_REGISTRY_URL'),
+        string(credentialsId: 'temp_registry_username', variable: 'TEMP_REGISTRY_USERNAME'),
+        string(credentialsId: 'temp_registry_password', variable: 'TEMP_REGISTRY_PASSWORD'),
     ]) {
 
         if (params.SEND_SLACK_NOTIFICATION) {
@@ -160,58 +163,13 @@ node {
             }
 
             if (params.AIR_GAP_INSTALLATION) {
-                stage('private registry build') {
-                    sh "airgap/scripts/build.sh"
-                    sh """ docker run -itd --name airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} \
-                                            -v /var/run/docker.sock:/var/run/docker.sock \
-                                            --env TF_VAR_docker_hub_username="${REGISTRY_USERNAME}" \
-                                            --env TF_VAR_docker_hub_password="${REGISTRY_PASSWORD}" \
-                                            --env TF_VAR_aws_access_key=${AWS_ACCESS_KEY} \
-                                            --env TF_VAR_aws_secret_key=${AWS_SECRET_KEY} \
-                                            --env TF_VAR_arch=${ARCH}\
-                                            --env TF_VAR_registry_aws_instance_type=${registry_instance_type}\
-                                            --env TF_VAR_appco_test="true"\
-                                            --dns=10.113.53.53 \
-                                            --dns=10.113.53.54 \
-                                            airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}
-                    """
-                }
+                stage('use existing private registry') {
+                    // Use existing registry from Jenkins credentials
+                    REGISTRY_URL = TEMP_REGISTRY_URL
+                    REGISTRY_USERNAME = TEMP_REGISTRY_USERNAME
+                    REGISTRY_PASSWORD = TEMP_REGISTRY_PASSWORD
 
-                stage ('private registry setup') {
-                    sh "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} ./airgap/scripts/terraform-setup.sh"
-                    REGISTRY_URL = sh (
-                        script: "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} terraform -chdir=./airgap/terraform output -raw registry_url",
-                        returnStdout: true
-                    )
-                    println REGISTRY_URL
-                    REGISTRY_USERNAME = sh (
-                        script: "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} terraform -chdir=./airgap/terraform output -raw registry_username",
-                        returnStdout: true
-                    )
-                    REGISTRY_PASSWORD = sh (
-                        script: "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} terraform -chdir=./airgap/terraform output -raw registry_password",
-                        returnStdout: true
-                    )
-                    // Pull appco images and push to private registry
-                    sh """ docker exec \
-                            --env REGISTRY_URL=${REGISTRY_URL} \
-                            --env REGISTRY_USERNAME="${REGISTRY_USERNAME}" \
-                            --env REGISTRY_PASSWORD="${REGISTRY_PASSWORD}" \
-                            --env APPCO_USERNAME=${APPCO_USERNAME} \
-                            --env APPCO_PASSWORD=${APPCO_PASSWORD} \
-                            --env LONGHORN_CHART_URI=${LONGHORN_CHART_URI} \
-                            --env LONGHORN_VERSION=${LONGHORN_VERSION} \
-                            --env APPCO_LONGHORN_COMPONENT_IMAGE_PATH=${APPCO_LONGHORN_COMPONENT_IMAGE_PATH} \
-                            --env LONGHORN_COMPONENT_TAG=${LONGHORN_COMPONENT_TAG} \
-                            --env LONGHORN_UPGRADE_TEST=${LONGHORN_UPGRADE_TEST} \
-                            --env LONGHORN_STABLE_VERSION=${LONGHORN_STABLE_VERSION} \
-                            --env LONGHORN_STABLE_VERSION_CHART_URI=${LONGHORN_STABLE_VERSION_CHART_URI} \
-                            --env LONGHORN_TRANSIENT_VERSION=${LONGHORN_TRANSIENT_VERSION} \
-                            --env LONGHORN_TRANSIENT_VERSION_CHART_URI=${LONGHORN_TRANSIENT_VERSION_CHART_URI} \
-                            ${envArgs} \
-                            airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} \
-                            bash -c './pipelines/appco/scripts/prepare_airgap_appco_images.sh'
-                    """
+                    println "Using existing registry: ${REGISTRY_URL}"
 
                     return
                 }
@@ -348,12 +306,12 @@ node {
             throw e
         } finally {
             stage ('releasing resources') {
-                if (sh (script: "docker container inspect airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} > /dev/null 2>&1", returnStatus: true) == 0) {
-                    sh "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} ./airgap/scripts/cleanup.sh"
-                    sh "docker stop airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                    sh "docker rm -v airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                    sh "docker rmi airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
-                }
+                //if (sh (script: "docker container inspect airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} > /dev/null 2>&1", returnStatus: true) == 0) {
+                    // sh "docker exec airgap-${JOB_BASE_NAME}-${BUILD_NUMBER} ./airgap/scripts/cleanup.sh"
+                    //sh "docker stop airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                    //sh "docker rm -v airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                    //sh "docker rmi airgap-${JOB_BASE_NAME}-${BUILD_NUMBER}"
+                //}
 
                 if (sh (script: "docker container inspect ${JOB_BASE_NAME}-${BUILD_NUMBER} > /dev/null 2>&1", returnStatus: true) == 0) {
                     sh "docker exec ${JOB_BASE_NAME}-${BUILD_NUMBER} pipelines/utilities/cleanup.sh"
