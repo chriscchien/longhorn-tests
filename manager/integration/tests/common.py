@@ -1843,6 +1843,8 @@ def cleanup_client():
 
     cleanup_all_support_bundles(client)
 
+    cleanup_all_orphans(client)
+
     # enable nodes scheduling
     reset_node(client, core_api)
     reset_settings(client)
@@ -6301,6 +6303,29 @@ def cleanup_all_support_bundles(client):
     for _ in range(RETRY_COUNTS):
         support_bundles = client.list_support_bundle()
         if len(support_bundles) == 0:
+            ok = True
+            break
+        time.sleep(RETRY_INTERVAL)
+    assert ok
+
+
+def cleanup_all_orphans(client):
+    """
+    Clean up all orphaned replica directories
+    :param client: The Longhorn client to use in the request.
+    """
+    orphans = client.list_orphan()
+    for orphan in orphans:
+        try:
+            client.delete(orphan)
+        except Exception as e:
+            print("\nException when cleanup orphan ", orphan.name)
+            print(e)
+
+    ok = False
+    for _ in range(RETRY_COUNTS):
+        orphans = client.list_orphan()
+        if len(orphans) == 0:
             ok = True
             break
         time.sleep(RETRY_INTERVAL)
