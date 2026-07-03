@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/longhorn_namespace.sh"
 
 longhorn_internal_networkpolicies_exist(){
   echo "Checking if Longhorn internal NetworkPolicies exist in namespace ${LONGHORN_NAMESPACE}..."
-  sleep 300
+  sleep 3000
   local found_manager=false
   local found_instance=false
 
