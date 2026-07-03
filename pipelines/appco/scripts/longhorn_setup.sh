@@ -41,6 +41,7 @@ main(){
   if [[ "$LONGHORN_TEST_CLOUDPROVIDER" == "harvester" ]]; then
     apply_kubectl_retry
     apply_helm_retry
+    sleep 300
   fi
 
   if [[ ${DISTRO} == "rhel" ]] || [[ ${DISTRO} == "rockylinux" ]] || [[ ${DISTRO} == "oracle" ]]; then
