@@ -30,7 +30,7 @@ longhorn_internal_networkpolicies_exist(){
 
   echo
   echo "DEBUG: sleeping 300 seconds, SSH into this container now if needed..."
-  sleep 300
+  sleep 30
 
   echo
   echo "===== Namespace info AFTER sleep ====="
