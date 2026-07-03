@@ -9,7 +9,20 @@ source "${SCRIPT_DIR}/longhorn_namespace.sh"
 
 longhorn_internal_networkpolicies_exist(){
   echo "Checking if Longhorn internal NetworkPolicies exist in namespace ${LONGHORN_NAMESPACE}..."
-  sleep 3000
+  echo "===== DEBUG inside longhorn_internal_networkpolicies_exist xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  echo "HOSTNAME=$(hostname)"
+  echo "USER=$(id)"
+  echo "KUBECONFIG=${KUBECONFIG:-<empty>}"
+  which kubectl
+  kubectl config current-context || true
+  kubectl cluster-info || true
+  kubectl get ns "${LONGHORN_NAMESPACE}" -o wide || true
+  kubectl get ns "${LONGHORN_NAMESPACE}" -o jsonpath='{.metadata.uid}{"\n"}' || true
+  kubectl get networkpolicy -n "${LONGHORN_NAMESPACE}" || true
+  echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+  echo "DEBUG: sleeping 3000 seconds, SSH into this container now if needed..."
+  sleep 300
   local found_manager=false
   local found_instance=false
 
@@ -91,6 +104,17 @@ delete_longhorn_manager_networkpolicy(){
 
 setup_longhorn_manager_networkpolicy(){
   get_longhorn_namespace
+  echo "===== DEBUG before checking NetworkPolicies ====="
+  echo "HOSTNAME=$(hostname)"
+  echo "USER=$(id)"
+  echo "KUBECONFIG=${KUBECONFIG:-<empty>}"
+  which kubectl
+  kubectl config current-context || true
+  kubectl cluster-info || true
+  kubectl get ns "${LONGHORN_NAMESPACE}" -o wide || true
+  kubectl get ns "${LONGHORN_NAMESPACE}" -o jsonpath='{.metadata.uid}{"\n"}' || true
+  kubectl get networkpolicy -n "${LONGHORN_NAMESPACE}" || true
+  echo "================================================="
 
   if longhorn_internal_networkpolicies_exist; then
     apply_longhorn_test_networkpolicy
