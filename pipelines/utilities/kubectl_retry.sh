@@ -57,33 +57,24 @@ apply_helm_retry(){
 helm() {
   { set +x; } 2>/dev/null
   trap 'set -x' RETURN
-  local helm_bin
-  helm_bin=$(command -v helm || echo /usr/local/bin/helm)
   local max_retries=60
   local delay=5
   local count=0
 
-  # registry subcommands (login/logout) talk to an OCI registry, not the k8s API.
-  # Wrapping them in output-capture causes an unbreakable hang when the network is down.
-  if [[ "$1" == "registry" ]]; then
-    "$helm_bin" "$@"
-    return $?
-  fi
-
   while true; do
-    output=$("$helm_bin" "$@" 2>&1)
+    output=$(/usr/local/bin/helm "$@" 2>&1)
     exit_code=$?
     echo "$output"
     count=$((count + 1))
+
     if grep -qiE "connection refused|apiserver not ready|unauthorized|error looking up secret|has prevented the request from succeeding|Kubernetes cluster unreachable" <<< "$output"; then
-      if [[ $count -ge $max_retries ]]; then
-        echo "helm: max retries ($max_retries) reached, giving up." >&2
-        break
-      fi
-      echo "helm: attempt $count failed with exit code $exit_code. Retrying in $delay seconds..." >&2
+      echo "Attempt $count failed with exit code $exit_code. Retrying in $delay seconds..." >&2
+    elif [[ $count -ge $max_retries ]]; then
+      break
     else
       break
     fi
+
     sleep $delay
   done
 
@@ -100,7 +91,7 @@ unset_helm_retry(){
 helm() {
   { set +x; } 2>/dev/null
   trap 'set -x' RETURN
-  $(command -v helm || echo /usr/local/bin/helm) "$@"
+  /usr/local/bin/helm "$@"
   return $?
 }
 EOF
