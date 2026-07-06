@@ -40,7 +40,7 @@ main(){
 
   if [[ "$LONGHORN_TEST_CLOUDPROVIDER" == "harvester" ]]; then
     apply_kubectl_retry
-    #apply_helm_retry
+    apply_helm_retry
     sleep 120
   fi
 
