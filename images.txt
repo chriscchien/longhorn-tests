@@ -1,0 +1,13 @@
+dp.apps.rancher.io/containers/kubernetes-csi-external-attacher:4.12.0-17.3
+dp.apps.rancher.io/containers/kubernetes-csi-external-provisioner:5.3.0-17.3
+dp.apps.rancher.io/containers/kubernetes-csi-external-resizer:2.2.1-10.3
+dp.apps.rancher.io/containers/kubernetes-csi-external-snapshotter:8.6.0-17.3
+dp.apps.rancher.io/containers/kubernetes-csi-node-driver-registrar:2.17.0-17.3
+dp.apps.rancher.io/containers/kubernetes-csi-livenessprobe:2.19.0-17.3
+dp.apps.rancher.io/containers/rancher-support-bundle-kit:0.0.92-13.12
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-backing-image-manager:1.12.1
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-engine:1.12.1
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-instance-manager:1.12.1
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-manager:1.12.1
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-share-manager:1.12.1
+registry.suse.de/devel/tulip/containers/1.12.x/mr-73/containers/longhorn-ui:1.12.1
