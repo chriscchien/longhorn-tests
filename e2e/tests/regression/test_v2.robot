@@ -642,3 +642,130 @@ Test CPU Manager Policy And Data Engine Number Of CPU Cores
     And Run command in pod ${LONGHORN_NAMESPACE}/${im_pod} and wait for output
     ...    awk '/^Cpus_allowed_list:/ {print $2}' /proc/self/status
     ...    ^[0-9]+-[0-9]+$
+
+Test V2 Sharded Volume CR Lifecycle Attach Snapshot And Revert
+    [Documentation]    Verify a v2 sharded (erasure coding) Volume CR can be created
+    ...    directly, statically bound to a pod via PV/PVC, attached, and that
+    ...    snapshot/revert works as expected.
+    ...
+    ...    Issue: https://github.com/longhorn/longhorn/issues/1061
+    ...
+    ...    Manual test steps:
+    ...    1. Create a sharded volume (dataLayout type=sharded, mode=erasureCoding).
+    ...    2. Create PV and PVC for the volume.
+    ...    3. Volume CR should be created and detached; ShardGroup CR healthy;
+    ...       Shard CRs normal; Engine CR stopped.
+    ...    4. Attach the volume via a pod; volume becomes attached/healthy;
+    ...       data can be written and read; data survives pod recreation
+    ...       (detach/reattach).
+    ...    5. Create a snapshot, overwrite the data, revert to the snapshot, and
+    ...       verify the original data is restored.
+    IF    '${DATA_ENGINE}' == 'v1'
+        Skip    Test only validate on v2 data engine
+    END
+
+    ${dataLayout} =    Create Dictionary
+    ...    type=sharded
+    ...    mode=erasureCoding
+    ...    dataChunks=2
+    ...    parityChunks=1
+    ...    stripSizeKB=64
+
+    ${volume_name} =    Generate Name With Suffix    volume    0
+
+    Given Create volume 0 with
+    ...    dataEngine=v2
+    ...    size=1Gi
+    ...    numberOfReplicas=1
+    ...    dataLocality=disabled
+    ...    dataLayout=${dataLayout}
+    And Wait for volume 0 to be created
+    And Wait for volume 0 detached
+
+    Then Run command and wait for output
+    ...    kubectl get shardgroups.longhorn.io -n ${LONGHORN_NAMESPACE} ${volume_name} -o jsonpath={.status.state}
+    ...    healthy
+    And Run command and wait for output
+    ...    kubectl get shards.longhorn.io -n ${LONGHORN_NAMESPACE} -l longhornvolume=${volume_name} -o jsonpath={.items[*].status.state}
+    ...    normal
+    And Run command and wait for output
+    ...    kubectl get engines.longhorn.io -n ${LONGHORN_NAMESPACE} -l longhornvolume=${volume_name} -o jsonpath={.items[*].status.currentState}
+    ...    stopped
+
+    When Create persistentvolume for volume 0
+    And Create persistentvolumeclaim for volume 0
+    And Create pod 0 using volume 0
+    And Wait for pod 0 running
+    And Wait for volume 0 healthy
+
+    And Write 100 MB data to file data.txt in pod 0
+    And Record file data.txt checksum in pod 0 as checksum data
+    Then Check pod 0 file data.txt checksum matches checksum data
+
+    # delete the pod to detach the volume, then recreate the pod to reattach it
+    When Delete pod 0
+    And Wait for volume 0 detached
+    And Create pod 0 using volume 0
+    And Wait for pod 0 running
+    And Wait for volume 0 healthy
+
+    # snapshot, overwrite data, then revert and verify the original data is restored
+    Then Create snapshot 0 of volume 0
+    And Write 100 MB data to file data.txt in pod 0
+    And Delete pod 0
+    And Wait for volume 0 detached
+    And Attach volume 0 in maintenance mode
+    And Wait for volume 0 healthy
+    And Revert volume 0 to snapshot 0
+    And Detach volume 0
+    And Wait for volume 0 detached
+    And Create pod 0 using volume 0
+    And Wait for pod 0 running
+    And Wait for volume 0 healthy
+    Then Check pod 0 file data.txt checksum matches checksum data
+
+Test V2 Sharded Volume Dynamic Provisioning With Expansion
+    [Documentation]    Verify a v2 sharded (erasure coding) volume can be
+    ...    dynamically provisioned via a StorageClass, attached, and expanded
+    ...    while preserving data integrity.
+    ...
+    ...    Issue: https://github.com/longhorn/longhorn/issues/1061
+    ...
+    ...    Manual test steps:
+    ...    1. Create a StorageClass with dataLayout parameters for erasure coding.
+    ...    2. Create a PVC and attach it via a workload pod.
+    ...    3. Write data, record the volume size.
+    ...    4. Expand the PVC and verify the volume/filesystem is expanded.
+    ...    5. Verify data written before expansion is intact and new data can be
+    ...       written and read after expansion.
+    IF    '${DATA_ENGINE}' == 'v1'
+        Skip    Test only validate on v2 data engine
+    END
+
+    ${dataLayout} =    Create Dictionary
+    ...    type=sharded
+    ...    mode=erasureCoding
+    ...    dataChunks=2
+    ...    parityChunks=1
+    ...    stripSizeKB=64
+
+    Given Create storageclass longhorn-test with
+    ...    dataEngine=v2
+    ...    numberOfReplicas=1
+    ...    dataLocality=disabled
+    ...    fsType=ext4
+    ...    dataLayout=${dataLayout}
+    And Create persistentvolumeclaim 0    volume_type=RWO    sc_name=longhorn-test    storage_size=1Gi
+    And Create deployment 0 with persistentvolumeclaim 0
+    And Wait for volume of deployment 0 healthy
+    And Write 100 MB data to file data.txt in deployment 0
+    Then Check deployment 0 data in file data.txt is intact
+
+    When Expand persistentvolumeclaim 0 size to 2Gi
+    And Wait for volume of persistentvolumeclaim 0 size to be 2Gi
+    And Wait for deployment 0 volume size expanded
+    Then Check deployment 0 data in file data.txt is intact
+
+    # write at least 1.5Gi of data (more than the original 1Gi size) to verify
+    # the volume can actually hold data beyond its pre-expansion capacity
+    When Write 1536 MB data to file data-after-expansion.txt in deployment 0
