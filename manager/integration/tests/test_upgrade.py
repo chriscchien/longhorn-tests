@@ -626,11 +626,7 @@ def test_upgrade(client, core_api, volume_name, csi_pv, # NOQA
     # the longhorn engine image to be upgraded to
     # it should be defined,
     # so os.environ is used to throw error if it's not found
-    if os.getenv('AIR_GAP_INSTALLATION') == "true":
-        longhorn_engine_image = os.environ['REGISTRY_URL'] + "/" + \
-                                os.environ['CUSTOM_LONGHORN_ENGINE_IMAGE']
-    else:
-        longhorn_engine_image = os.environ['CUSTOM_LONGHORN_ENGINE_IMAGE']
+    longhorn_engine_image = "dp.apps.rancher.io/containers/longhorn-engine:1.12.1-1.2"
     print(f"target longhorn engine image = {longhorn_engine_image}")
     print("listing available longhorn engine images:")
     for ei in engineimages:
