@@ -22,6 +22,29 @@ class Secret():
             logging(f"Creating secret {manifest_dict['metadata']['name']}")
             self.api.create_namespaced_secret(constant.LONGHORN_NAMESPACE, body=manifest_dict)
 
+    def create_registry_secret(self, name, original_secret_name=""):
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Secret",
+            "metadata": {
+                "name": name,
+                "namespace": constant.LONGHORN_NAMESPACE,
+                "labels": {"test.longhorn.io": "e2e"}
+            },
+            "type": "kubernetes.io/dockerconfigjson"
+        }
+        if original_secret_name:
+            original_secret = self.api.read_namespaced_secret(
+                name=original_secret_name, namespace=constant.LONGHORN_NAMESPACE)
+            manifest["data"] = {
+                ".dockerconfigjson": original_secret.data[".dockerconfigjson"]
+            }
+        else:
+            manifest["stringData"] = {".dockerconfigjson": '{"auths":{}}'}
+        logging(f"Creating registry secret {name}")
+        self.api.create_namespaced_secret(
+            namespace=constant.LONGHORN_NAMESPACE, body=manifest)
+
     def delete(self, name, namespace):
         try:
             logging(f"Deleting secret {name}")

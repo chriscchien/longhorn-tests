@@ -1,3 +1,7 @@
+from kubernetes import client
+from kubernetes.client.rest import ApiException
+
+import utility.constant as constant
 from system_backup.base import Base
 from system_backup.crd import CRD
 from utility.utility import logging
@@ -28,9 +32,17 @@ class Rest(Base):
         assert ready, f"Waiting for system backup {backup_name} to be ready failed: {system_backup}"
 
     def restore(self, backup_name):
+        restore_name = self.start_restore(backup_name)
+        self.wait_for_system_restore_completed(restore_name)
+
+    def start_restore(self, backup_name):
         restore_name = generate_name_random("system-restore-")
         logging(f"Creating system restore {restore_name} from system backup {backup_name}")
         get_longhorn_client().create_system_restore(Name=restore_name, SystemBackup=backup_name)
+        return restore_name
+
+    def wait_for_system_restore_completed(self, restore_name):
+        system_restore = None
         completed = False
         for i in range(self.retry_count):
             logging(f"Waiting for system restore {restore_name} to be completed ... ({i})")
@@ -43,6 +55,27 @@ class Rest(Base):
                 logging(f"Waiting for system restore {restore_name} to be completed failed: {e}")
             time.sleep(self.retry_interval)
         assert completed, f"Waiting for system restore {restore_name} to be completed failed: {system_restore}"
+
+    def check_system_restore_job_registry_secret(self, restore_name, secret_name):
+        job_name = f"longhorn-system-rollout-{restore_name}"
+        api = client.BatchV1Api()
+        for i in range(self.retry_count):
+            logging(f"Waiting for system restore job {job_name} ... ({i})")
+            try:
+                job = api.read_namespaced_job(
+                    name=job_name, namespace=constant.LONGHORN_NAMESPACE)
+            except ApiException as e:
+                if e.status != 404:
+                    raise
+                time.sleep(self.retry_interval)
+                continue
+            secrets = [secret.name for secret in
+                       (job.spec.template.spec.image_pull_secrets or [])]
+            assert secret_name in secrets, (
+                f"System restore job {job_name} imagePullSecrets {secrets} "
+                f"does not contain {secret_name}")
+            return
+        assert False, f"Timed out waiting for system restore job {job_name}"
 
     def delete_system_backup(self, backup_name):
         logging(f"Deleting system backup {backup_name}")

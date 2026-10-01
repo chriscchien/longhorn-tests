@@ -26,3 +26,7 @@ Update Setting To Valid Value And Verify
 Setting ${setting_key} should be ${setting_value}
     ${current_value} =    get_setting    ${setting_key}
     Should Be Equal    ${current_value}    ${setting_value}
+
+Get setting ${setting_key} value
+    ${value} =    get_setting    ${setting_key}
+    RETURN    ${value}

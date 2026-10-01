@@ -6,6 +6,7 @@ Test Tags    regression    system_backup
 Resource    ../keywords/variables.resource
 Resource    ../keywords/common.resource
 Resource    ../keywords/setting.resource
+Resource    ../keywords/secret.resource
 Resource    ../keywords/volume.resource
 Resource    ../keywords/system_backup.resource
 Resource    ../keywords/longhorn.resource
@@ -66,3 +67,22 @@ Test Create System Backup With DR Volume
     When Create DR volume 1 from backup 0    dataEngine=${DATA_ENGINE}
     And Create system backup 0
     And Assert volume 1 remains attached for at least 60 seconds
+
+Test System Restore Job Uses Registry Secret
+    [Documentation]    Issue: https://github.com/longhorn/longhorn/issues/13968
+    ...    Backport: https://github.com/longhorn/longhorn/issues/13969
+    ...    Verify the SystemRestore rollout Job uses the configured registry-secret.
+    [Tags]    registry-secret
+    ${original_registry_secret} =    Given Get setting registry-secret value
+    TRY
+        And Create test registry secret test-registry-secret    ${original_registry_secret}
+        And Setting registry-secret is set to test-registry-secret
+        And Setting registry-secret should be test-registry-secret
+        And Create system backup 0
+
+        ${restore_name} =    When Start restoring system backup 0
+        Then System restore ${restore_name} job should use registry secret test-registry-secret
+        And Wait for system restore ${restore_name} completed
+    FINALLY
+        Setting registry-secret is set to ${original_registry_secret}
+    END

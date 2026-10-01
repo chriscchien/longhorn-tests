@@ -19,6 +19,15 @@ class SystemBackup(Base):
     def restore(self, backup_name):
         return self.system_backup.restore(backup_name)
 
+    def start_restore(self, backup_name):
+        return self.system_backup.start_restore(backup_name)
+
+    def wait_for_system_restore_completed(self, restore_name):
+        self.system_backup.wait_for_system_restore_completed(restore_name)
+
+    def check_system_restore_job_registry_secret(self, restore_name, secret_name):
+        self.system_backup.check_system_restore_job_registry_secret(restore_name, secret_name)
+
     def delete_system_backup(self, backup_name):
         return self.system_backup.delete_system_backup(backup_name)
 
