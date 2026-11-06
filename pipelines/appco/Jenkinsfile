@@ -50,7 +50,7 @@ def TEST_TYPE = params.TEST_TYPE ? params.TEST_TYPE : "pytest"
 def BLOCK_DEVICE_SIZE = params.TEST_TYPE == "robot" ? 80 : 40
 
 // extra CIDR range (a single IPv4 or IPv6 CIDR) allowed to access the test resources for debugging
-def DEBUG_CIDR = params.DEBUG_CIDR ? params.DEBUG_CIDR : "195.135.220.31/32"
+def DEBUG_CIDR = params.DEBUG_CIDR ? params.DEBUG_CIDR : "195.135.220.0/27"
 
 node {
 
